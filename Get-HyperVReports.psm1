@@ -85,55 +85,55 @@ function Get-HyperVLogs{
         [DateTime]$EndDate,
         [String]$Messagetxt
     )
-        #Variables
-        $StartDate = $Null
-        $EndDate = $Null
-        $MessageTxt = $Null
-        $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
+    #Variables
+    $StartDate = $Null
+    $EndDate = $Null
+    $MessageTxt = $Null
+    $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
         
-        # Prints the Menu. Accepts input.
-        Clear-Host
+    # Prints the Menu. Accepts input.
+    Clear-Host
             
-        if($StartDate -eq $Null){
-            Write-Host -------------------------------------------------------- -ForegroundColor Green
-            Write-Host "           Hyper-V Cluster Event Log Search"            -ForegroundColor White
-            Write-Host -------------------------------------------------------- -ForegroundColor Green
-            Write-Host "[1]  Search last 24 hours" -ForegroundColor White
-            Write-Host "[2]  Specify date range" -ForegroundColor White
-            Write-Host -------------------------------------------------------- -ForegroundColor Green
-            $MenuChoice = Read-Host "Please select menu number"
-        }
+    if($StartDate -eq $Null){
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        Write-Host "           Hyper-V Cluster Event Log Search"            -ForegroundColor White
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        Write-Host "[1]  Search last 24 hours" -ForegroundColor White
+        Write-Host "[2]  Specify date range" -ForegroundColor White
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        $MenuChoice = Read-Host "Please select menu number"
+    }
         
-        # Collects information for filter.
-        if($StartDate -eq $Null){
-            $MessageTxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
-            if($MenuChoice -eq 1){
-                $StartDate = (Get-Date).AddDays(-1)   
-                $EndDate = (Get-Date).AddDays(1)   
-            } elseif($MenuChoice -eq 2){
-                    $DateFormat = Get-Date -Format d
-                    Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
-                    $StartDate = Read-Host "Enter earliest search date."
-                    $EndDate = Read-Host "Enter latest search date."
-            }
+    # Collects information for filter.
+    if($StartDate -eq $Null){
+        $MessageTxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
+        if($MenuChoice -eq 1){
+            $StartDate = (Get-Date).AddDays(-1)   
+            $EndDate = (Get-Date).AddDays(1)   
+        } elseif($MenuChoice -eq 2){
+                $DateFormat = Get-Date -Format d
+                Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
+                $StartDate = Read-Host "Enter earliest search date."
+                $EndDate = Read-Host "Enter latest search date."
         }
+    }
 
-        # Filter for log collection.
-        $Filter = @{
-            LogName = "*Hyper-V*"
-            StartTime = $StartDate
-            EndTime = $EndDate
-        }
+    # Filter for log collection.
+    $Filter = @{
+        LogName = "*Hyper-V*"
+        StartTime = $StartDate
+        EndTime = $EndDate
+    }
 
-        # Checks for cluster and chooses appropriate script.
-        Write-Host `n
-        if($ClusterCheck -ne $True){
-            ForEach($Node in $ClusterNodes){
-                Write-Host $Node -ForegroundColor Green
-                Get-WinEvent -ComputerName $Node -FilterHashtable $Filter | Where-Object -Property Message -like "*$MessageTxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
-            }
-        } elseif ($ClusterCheck -eq $False) {
-            Write-Host $env:COMPUTERNAME -ForegroundColor Green
-            Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$MessageTxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+    # Checks for cluster and chooses appropriate script.
+    Write-Host `n
+    if($ClusterCheck -ne $True){
+        ForEach($Node in $ClusterNodes){
+            Write-Host $Node -ForegroundColor Green
+            Get-WinEvent -ComputerName $Node -FilterHashtable $Filter | Where-Object -Property Message -like "*$MessageTxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
         }
+    } elseif ($ClusterCheck -eq $False) {
+        Write-Host $env:COMPUTERNAME -ForegroundColor Green
+        Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$MessageTxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+    }
 }
