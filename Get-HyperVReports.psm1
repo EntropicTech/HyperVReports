@@ -2,6 +2,7 @@ function Get-ClusterCheck{
     [CmdletBinding()]
     param(
     )
+
     $ClusterCheckTest = $False
     $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
     if($ClusterCheckTest){
@@ -15,21 +16,22 @@ function Get-HyperVReports{
     [CmdletBinding()]
     param(
     )
+
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host "                   Hyper-V Reports"                     -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "[1]  Get-HyperVLogs" -ForegroundColor White
-    Write-Host "[2]  Get-MaintenanceQC" -ForegroundColor White
-    Write-Host "[3]  Get-CAULogs" -ForegroundColor White
+    Write-Host "[1]  Hyper-V Cluster Log Search" -ForegroundColor White
+    Write-Host "[2]  Maintenance QC" -ForegroundColor White
+    Write-Host "[3]  Cluster Aware Update History" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     $MenuChoice = Read-Host "Please select menu number"
     if($MenuChoice -eq 1){
-        Get-HyperVLogs
+        Get-HyperVClusterLogs
     } elseif($MenuChoice -eq 2){
-        Get-MaintenanceQC
+        Get-HyperVMaintenanceQC
     } elseif($MenuChoice -eq 3){
-        Get-CAULogs
+        Get-HyperVCAULogs
     } else {
         Clear-Host
         Write-Host "Incorrect Choice. Choose a number from the menu."
@@ -38,10 +40,11 @@ function Get-HyperVReports{
     }
 }
 
-function Get-CAULogs{
+function Get-HyperVCAULogs{
     [CmdletBinding()]
     param(
     )
+
     $FormatEnumerationLimit = -1
 
     #Variables
@@ -79,6 +82,10 @@ function Get-CAULogs{
 }
 
 function Get-HyperVClusterLogs{
+    [CmdletBinding()]
+    param(
+    )
+
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
@@ -122,4 +129,25 @@ function Get-HyperVClusterLogs{
         Write-Host $env:COMPUTERNAME -ForegroundColor Green
         Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
     }
+}
+
+function Get-HyperVMaintenanceQC{
+    [CmdletBinding()]
+    param(
+    )
+
+    $ClusterNodes = Get-Clusternode -ErrorAction SilentlyContinue
+
+    $VMHostMemory = foreach($Node in $ClusterNodes){
+        
+        [PSCustomObject]@{
+           Name = $Node.Name
+           TotalMemory = [math]::Round((Get-VMHost -ComputerName $Node).MemoryCapacity /1GB)
+           AvailableMemory = [math]::Round((Get-VMHostNumaNode -ComputerName $Node).MemoryAvailable /1024)
+        }
+    }
+
+
+
+
 }
