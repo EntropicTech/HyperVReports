@@ -78,7 +78,7 @@ function Get-CAULogs{
     } | Format-Table -AutoSize
 }
 
-function Get-HyperVLogs{
+function Get-HyperVClusterLogs{
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
@@ -122,4 +122,4 @@ function Get-HyperVLogs{
         Write-Host $env:COMPUTERNAME -ForegroundColor Green
         Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
     }
-    }
+}
