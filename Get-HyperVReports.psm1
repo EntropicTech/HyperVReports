@@ -131,23 +131,125 @@ function Get-HyperVClusterLogs{
     }
 }
 
-function Get-HyperVMaintenanceQC{
-    [CmdletBinding()]
-    param(
-    )
+Function Get-HyperVMaintenanceQC{
+ 
+    Clear-Host
 
-    $ClusterNodes = Get-Clusternode -ErrorAction SilentlyContinue
+    # Gather Cluster Variables
+    $Cluster = Get-Cluster
+    $ClusterNodes = Get-ClusterNode
+
+    #Variable cleanup
+    $TotalVMHostMemory = $False
+    $TotalUsableVMHostMemory = $False
+    $VirtMemory = $False
+        
+    if ( $ClusterCheck -eq $False ){  
+        Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
+        break
+    }
+    
+    #Start The Maths
+    Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
     $VMHostMemory = foreach($Node in $ClusterNodes){
         
         [PSCustomObject]@{
-           Name = $Node.Name
-           TotalMemory = [math]::Round((Get-VMHost -ComputerName $Node).MemoryCapacity /1GB)
-           AvailableMemory = [math]::Round((Get-VMHostNumaNode -ComputerName $Node).MemoryAvailable /1024)
+            Name = $Node.Name
+            TotalMemory = [math]::Round((Get-WmiObject Win32_ComputerSystem -ComputerName $Node.Name).TotalPhysicalMemory /1GB )
+            AvailableMemory = [math]::Round(((Get-WmiObject Win32_OperatingSystem -ComputerName $Node.Name).FreePhysicalMemory) /1024 /1024 )
+            UsableMemory = [math]::Round((Get-Counter -ComputerName $Node.Name -Counter "\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory").Readings.Split(":")[1] / 1024)
         }
     }
 
+    foreach($VMHost in $VMHostMemory){
+        $TotalVMHostMemory += $VMHost.TotalMemory
+        $TotalAvailableVMHostMemory += $VMHost.AvailableMemory
+        $TotalUsableVMHostMemory += $VMHost.UsableMemory
+        $VirtMemory += $VMHost.AvailableMemory - $VMHost.UsableMemory
+    }
 
+    $Nodecount = $ClusterNodes.Count
+    #$SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
+    $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
+    $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
+    $HAMemory = $SingleNodeMemory - $TotalUsableVMHostMemory 
 
+    #Collect unclustered VMs
+    $NonClusteredVMs = foreach($Node in $ClusterNodes) {
+        Get-VM -ComputerName $Node.Name | Where-Object { $_.IsClustered -eq $False }
+    }
 
+    #Clear screen and print report.
+    Clear-Host
+        
+    # Gets cluster and counts number of cluster nodes. Prints node count.
+    $Nodecount = $ClusterNodes.Count
+        
+    if ($Nodecount -eq "1" ){
+        Write-Host "===========================================" -ForegroundColor DarkGray
+        Write-Host "    $Cluster is a single node cluster."
+        Write-Host "===========================================" -ForegroundColor DarkGray
+    } else {
+        Write-Host "===========================================" -ForegroundColor DarkGray
+        Write-Host "       $Cluster has $Nodecount nodes."
+        Write-Host "===========================================" -ForegroundColor DarkGray
+    }
+
+    # Print Node Memory Report                      
+    Write-Host "  $TotalVMHostMemory GB - Physical memory of cluster."   
+    Write-Host "  $SingleNodeMemory GB - Physical memory of each node."    
+    Write-Host "  $TotalUsableVMHostMemory GB - Useable memory of cluster."    
+    Write-Host "===========================================" -ForegroundColor DarkGray
+
+    # Prints error if all nodes don't have the same amount of memory.    
+    if ( $Nodecheck -ne $Nodecount ){        
+        Write-Host "  Nodes have different amounts of memory!" -ForegroundColor Red        
+        Write-Host "===========================================" -ForegroundColor DarkGray
+    }
+        
+    # Checks if cluster is HA.    
+    if ( $TotalUsableVMHostMemory -le $SingleNodeMemory ){       
+        Write-host " Cluster would NOT survive single failure!" -ForegroundColor Red
+        Write-Host "-------------------------------------------" -ForegroundColor DarkGray       
+        Write-Host " More than $HAMemory GB of memory needed to be HA."
+    } else {    
+        Write-Host "  Cluster would survive single failure." -ForegroundColor Green
+    }
+
+    Write-Host "===========================================" -ForegroundColor DarkGray
+
+    # Checks if nonclustered VMs exist and prints list
+
+    if ($NonClusteredVMs -eq $null){
+        Write-Host "          All VMs are clustered." -ForegroundColor Green
+    } else {
+        Write-Host "          VMs NOT in cluster." -ForegroundColor Yellow
+        Write-Host "-------------------------------------------" -ForegroundColor DarkGray
+    }
+    
+    $VMs = foreach($VM in $NonClusteredVMs){
+       if( $VM.State -eq "Running" ){ 
+
+            [PSCustomObject]@{
+                VMName = $VM.Name
+                VMState = $VM.State
+                VMHost = $VM.Computername
+            }
+        } 
+        if ( $VM.State -eq "Off" ){
+
+            [PSCustomObject]@{
+                VMName = $VM.Name
+                VMState = $VM.State
+                VMHost = $VM.Computername
+            }
+        }
+    }
+
+    $UnClusteredVMsSorted = $VMs | Sort-Object VMState
+
+    foreach($VM in $UnClusteredVMsSorted){
+        Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
+    }
 }
