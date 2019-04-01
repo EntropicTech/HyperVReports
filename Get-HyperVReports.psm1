@@ -113,7 +113,7 @@ function Get-HyperVClusterLogs{
     
     # Filter for log collection.           
     $Filter = @{
-        LogName = "*Hyper-v*"
+        LogName = "*Hyper-V*"
         StartTime = $StartDate
         EndTime = $EndDate
     }
@@ -121,9 +121,9 @@ function Get-HyperVClusterLogs{
     $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
 
     if($ClusterCheck -ne $False){
-        $ClusterNodes | ForEach-Object {
-            Write-Host $_.Name -ForegroundColor Green
-            Get-WinEvent -ComputerName $_.Name -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+        foreach($Node in $ClusterNodes) {
+            Write-Host $Node.Name -ForegroundColor Green
+            Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
         }
     } elseif($ClusterCheck -eq $False){
         Write-Host $env:COMPUTERNAME -ForegroundColor Green
@@ -144,7 +144,7 @@ Function Get-HyperVMaintenanceQC{
     $TotalUsableVMHostMemory = $False
     $VirtMemory = $False
         
-    if ( $ClusterCheck -eq $False ){  
+    if ($ClusterCheck -eq $False){  
         Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
         break
     }
@@ -183,7 +183,7 @@ Function Get-HyperVMaintenanceQC{
     #Clear screen and print report.
     Clear-Host
         
-    if ($Nodecount -eq "1" ){
+    if ($Nodecount -eq "1"){
         Write-Host "===========================================" -ForegroundColor DarkGray
         Write-Host "    $Cluster is a single node cluster."
         Write-Host "===========================================" -ForegroundColor DarkGray
@@ -200,13 +200,13 @@ Function Get-HyperVMaintenanceQC{
     Write-Host "===========================================" -ForegroundColor DarkGray
 
     # Prints error if all nodes don't have the same amount of memory.    
-    if ( $Nodecheck -ne $Nodecount ){        
+    if ($Nodecheck -ne $Nodecount){        
         Write-Host "  Nodes have different amounts of memory!" -ForegroundColor Red        
         Write-Host "===========================================" -ForegroundColor DarkGray
     }
         
     # Checks if cluster is HA.    
-    if ( $TotalUsableVMHostMemory -le $SingleNodeMemory ){       
+    if ($TotalUsableVMHostMemory -le $SingleNodeMemory){       
         Write-host " Cluster would NOT survive single failure!" -ForegroundColor Red
         Write-Host "-------------------------------------------" -ForegroundColor DarkGray       
         Write-Host " More than $HAMemory GB of memory needed to be HA."
@@ -226,7 +226,7 @@ Function Get-HyperVMaintenanceQC{
     }
     
     $VMs = foreach($VM in $NonClusteredVMs){
-       if( $VM.State -eq "Running" ){ 
+       if($VM.State -eq "Running"){ 
 
             [PSCustomObject]@{
                 VMName = $VM.Name
@@ -234,7 +234,7 @@ Function Get-HyperVMaintenanceQC{
                 VMHost = $VM.Computername
             }
         } 
-        if ( $VM.State -eq "Off" ){
+        if ($VM.State -eq "Off"){
 
             [PSCustomObject]@{
                 VMName = $VM.Name
@@ -244,9 +244,9 @@ Function Get-HyperVMaintenanceQC{
         }
     }
 
-    $NonClusteredVMsSorted = $VMs | Sort-Object VMState
+    $UnClusteredVMsSorted = $VMs | Sort-Object VMState
 
-    foreach($VM in $NonClusteredVMsSorted){
+    foreach($VM in $UnClusteredVMsSorted){
         Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
     }
 }
