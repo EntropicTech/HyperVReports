@@ -183,9 +183,6 @@ Function Get-HyperVMaintenanceQC{
     #Clear screen and print report.
     Clear-Host
         
-    # Gets cluster and counts number of cluster nodes. Prints node count.
-    $Nodecount = $ClusterNodes.Count
-        
     if ($Nodecount -eq "1" ){
         Write-Host "===========================================" -ForegroundColor DarkGray
         Write-Host "    $Cluster is a single node cluster."
@@ -247,9 +244,9 @@ Function Get-HyperVMaintenanceQC{
         }
     }
 
-    $UnClusteredVMsSorted = $VMs | Sort-Object VMState
+    $NonClusteredVMsSorted = $VMs | Sort-Object VMState
 
-    foreach($VM in $UnClusteredVMsSorted){
+    foreach($VM in $NonClusteredVMsSorted){
         Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
     }
 }
