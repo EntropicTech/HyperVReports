@@ -132,7 +132,10 @@ function Get-HyperVClusterLogs{
 }
 
 Function Get-HyperVMaintenanceQC{
- 
+    [CmdletBinding()]
+    param(
+    )
+    
     Clear-Host
 
     # Gather Cluster Variables
@@ -244,9 +247,9 @@ Function Get-HyperVMaintenanceQC{
         }
     }
 
-    $UnClusteredVMsSorted = $VMs | Sort-Object VMState
+    $NonClusteredVMsSorted = $VMs | Sort-Object VMState
 
-    foreach($VM in $UnClusteredVMsSorted){
+    foreach($VM in $NonClusteredVMsSorted){
         Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
     }
 }
