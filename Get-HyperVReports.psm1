@@ -146,6 +146,7 @@ Function Get-HyperVMaintenanceQC{
     $TotalVMHostMemory = $False
     $TotalUsableVMHostMemory = $False
     $VirtMemory = $False
+    $NonClusteredVMs = $False
         
     if ($ClusterCheck -eq $False){  
         Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
@@ -173,10 +174,10 @@ Function Get-HyperVMaintenanceQC{
     }
 
     $Nodecount = $ClusterNodes.Count
-    #$SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
+    $SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
     $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
     $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
-    $HAMemory = $SingleNodeMemory - $TotalUsableVMHostMemory 
+    $HAMemory = $SingleNodeMemory - ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
 
     #Collect unclustered VMs
     $NonClusteredVMs = foreach($Node in $ClusterNodes) {
@@ -221,8 +222,9 @@ Function Get-HyperVMaintenanceQC{
 
     # Checks if nonclustered VMs exist and prints list
 
-    if ($NonClusteredVMs -eq $null){
+    if ($NonClusteredVMs -eq $False){
         Write-Host "          All VMs are clustered." -ForegroundColor Green
+        Write-Host "-------------------------------------------" -ForegroundColor DarkGray
     } else {
         Write-Host "          VMs NOT in cluster." -ForegroundColor Yellow
         Write-Host "-------------------------------------------" -ForegroundColor DarkGray
