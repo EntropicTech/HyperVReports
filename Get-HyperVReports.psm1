@@ -1,18 +1,18 @@
-function Get-ClusterCheck{
+function Get-ClusterCheck {
     [CmdletBinding()]
     param(
     )
 
     $ClusterCheckTest = $False
     $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
-    if($ClusterCheckTest){
+    if ($ClusterCheckTest) {
         $Script:ClusterCheck = $True
     } else {
         $Script:ClusterCheck = $False
     }
 }
 
-function Get-HyperVReports{
+function Get-HyperVReports {
     [CmdletBinding()]
     param(
     )
@@ -24,14 +24,17 @@ function Get-HyperVReports{
     Write-Host "[1]  Hyper-V Cluster Log Search" -ForegroundColor White
     Write-Host "[2]  Maintenance QC" -ForegroundColor White
     Write-Host "[3]  Cluster Aware Update History" -ForegroundColor White
+    Write-Host "[4]  Storage Reports" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    $MenuChoice = Read-Host "Please select menu number"
-    if($MenuChoice -eq 1){
+    $MenuChoice = Read-Host "Menu Choice"
+    if ($MenuChoice -eq 1) {
         Get-HyperVClusterLogs
-    } elseif($MenuChoice -eq 2){
+    } elseif ($MenuChoice -eq 2) {
         Get-HyperVMaintenanceQC
-    } elseif($MenuChoice -eq 3){
+    } elseif ($MenuChoice -eq 3) {
         Get-HyperVCAULogs
+    } elseif ($MenuChoice -eq 4) {
+        Get-HyperVStorageReport
     } else {
         Clear-Host
         Write-Host "Incorrect Choice. Choose a number from the menu."
@@ -40,16 +43,14 @@ function Get-HyperVReports{
     }
 }
 
-function Get-HyperVCAULogs{
+function Get-HyperVCAULogs {
     [CmdletBinding()]
     param(
     )
 
-    $FormatEnumerationLimit = -1
-
     #Variables
     $Cluster = (Get-Cluster).Name
-    $CAUDates = ((Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
+    $CAUDates = ( (Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
     $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue    
 
     # Gathers CAU Dates from logs and prints for $StartDate input.
@@ -81,7 +82,7 @@ function Get-HyperVCAULogs{
     } | Format-Table -AutoSize
 }
 
-function Get-HyperVClusterLogs{
+function Get-HyperVClusterLogs {
     [CmdletBinding()]
     param(
     )
@@ -100,10 +101,10 @@ function Get-HyperVClusterLogs{
     # Collects information for filter.
     $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
     
-    if($MenuChoice -eq 1){
+    if ($MenuChoice -eq 1) {
         $StartDate = (Get-Date).AddDays(-1)   
         $EndDate = (Get-Date).AddDays(1)   
-    } elseif($MenuChoice -eq 2){
+    } elseif ($MenuChoice -eq 2) {
         $DateFormat = Get-Date -Format d
         Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
         $StartDate = Read-Host "Enter oldest search date."
@@ -120,19 +121,22 @@ function Get-HyperVClusterLogs{
     
     $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
 
-    if($ClusterCheck -ne $False){
-        foreach($Node in $ClusterNodes) {
+    if ($ClusterCheck -ne $False) {
+        foreach ($Node in $ClusterNodes) {
             Write-Host $Node.Name -ForegroundColor Green
             Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
         }
-    } elseif($ClusterCheck -eq $False){
+    } elseif ($ClusterCheck -eq $False) {
         Write-Host $env:COMPUTERNAME -ForegroundColor Green
         Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
     }
 }
 
-Function Get-HyperVMaintenanceQC{
- 
+Function Get-HyperVMaintenanceQC {
+    [CmdletBinding()]
+    param(
+    )
+    
     Clear-Host
 
     # Gather Cluster Variables
@@ -143,8 +147,9 @@ Function Get-HyperVMaintenanceQC{
     $TotalVMHostMemory = $False
     $TotalUsableVMHostMemory = $False
     $VirtMemory = $False
+    $NonClusteredVMs = $False
         
-    if ($ClusterCheck -eq $False){  
+    if ($ClusterCheck -eq $False) {  
         Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
         break
     }
@@ -152,17 +157,17 @@ Function Get-HyperVMaintenanceQC{
     #Start The Maths
     Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
-    $VMHostMemory = foreach($Node in $ClusterNodes){
+    $VMHostMemory = foreach ($Node in $ClusterNodes) {
         
         [PSCustomObject]@{
             Name = $Node.Name
-            TotalMemory = [math]::Round((Get-WmiObject Win32_ComputerSystem -ComputerName $Node.Name).TotalPhysicalMemory /1GB )
-            AvailableMemory = [math]::Round(((Get-WmiObject Win32_OperatingSystem -ComputerName $Node.Name).FreePhysicalMemory) /1024 /1024 )
-            UsableMemory = [math]::Round((Get-Counter -ComputerName $Node.Name -Counter "\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory").Readings.Split(":")[1] / 1024)
+            TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $Node.Name).TotalPhysicalMemory /1GB )
+            AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $Node.Name).FreePhysicalMemory ) /1024 /1024 )
+            UsableMemory = [math]::Round( (Get-Counter -ComputerName $Node.Name -Counter "\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory").Readings.Split(":")[1] / 1024 )
         }
     }
 
-    foreach($VMHost in $VMHostMemory){
+    foreach ($VMHost in $VMHostMemory) {
         $TotalVMHostMemory += $VMHost.TotalMemory
         $TotalAvailableVMHostMemory += $VMHost.AvailableMemory
         $TotalUsableVMHostMemory += $VMHost.UsableMemory
@@ -170,20 +175,20 @@ Function Get-HyperVMaintenanceQC{
     }
 
     $Nodecount = $ClusterNodes.Count
-    #$SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
+    $SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
     $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
     $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
-    $HAMemory = $SingleNodeMemory - $TotalUsableVMHostMemory 
+    $HAMemory = $SingleNodeMemory - ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
 
     #Collect unclustered VMs
-    $NonClusteredVMs = foreach($Node in $ClusterNodes) {
+    $NonClusteredVMs = foreach ($Node in $ClusterNodes) {
         Get-VM -ComputerName $Node.Name | Where-Object { $_.IsClustered -eq $False }
     }
 
     #Clear screen and print report.
     Clear-Host
         
-    if ($Nodecount -eq "1"){
+    if ($Nodecount -eq "1") {
         Write-Host "===========================================" -ForegroundColor DarkGray
         Write-Host "    $Cluster is a single node cluster."
         Write-Host "===========================================" -ForegroundColor DarkGray
@@ -200,13 +205,13 @@ Function Get-HyperVMaintenanceQC{
     Write-Host "===========================================" -ForegroundColor DarkGray
 
     # Prints error if all nodes don't have the same amount of memory.    
-    if ($Nodecheck -ne $Nodecount){        
+    if ($Nodecheck -ne $Nodecount) {        
         Write-Host "  Nodes have different amounts of memory!" -ForegroundColor Red        
         Write-Host "===========================================" -ForegroundColor DarkGray
     }
         
     # Checks if cluster is HA.    
-    if ($TotalUsableVMHostMemory -le $SingleNodeMemory){       
+    if ($TotalUsableVMHostMemory -le $SingleNodeMemory) {       
         Write-host " Cluster would NOT survive single failure!" -ForegroundColor Red
         Write-Host "-------------------------------------------" -ForegroundColor DarkGray       
         Write-Host " More than $HAMemory GB of memory needed to be HA."
@@ -218,15 +223,16 @@ Function Get-HyperVMaintenanceQC{
 
     # Checks if nonclustered VMs exist and prints list
 
-    if ($NonClusteredVMs -eq $null){
+    if ($Null -eq $NonClusteredVMs){
         Write-Host "          All VMs are clustered." -ForegroundColor Green
+        Write-Host "-------------------------------------------" -ForegroundColor DarkGray
     } else {
         Write-Host "          VMs NOT in cluster." -ForegroundColor Yellow
         Write-Host "-------------------------------------------" -ForegroundColor DarkGray
     }
     
-    $VMs = foreach($VM in $NonClusteredVMs){
-       if($VM.State -eq "Running"){ 
+    $VMs = foreach ($VM in $NonClusteredVMs) {
+       if ($VM.State -eq "Running") { 
 
             [PSCustomObject]@{
                 VMName = $VM.Name
@@ -234,7 +240,7 @@ Function Get-HyperVMaintenanceQC{
                 VMHost = $VM.Computername
             }
         } 
-        if ($VM.State -eq "Off"){
+        if ($VM.State -eq "Off") {
 
             [PSCustomObject]@{
                 VMName = $VM.Name
@@ -244,9 +250,59 @@ Function Get-HyperVMaintenanceQC{
         }
     }
 
-    $UnClusteredVMsSorted = $VMs | Sort-Object VMState
+    $NonClusteredVMsSorted = $VMs | Sort-Object VMState
 
-    foreach($VM in $UnClusteredVMsSorted){
+    foreach ($VM in $NonClusteredVMsSorted) {
         Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
+    }
+}
+
+function Get-HyperVStorageReport {
+    [CmdletBinding()]
+    param(
+    )
+
+    # Prints the Menu. Accepts input.
+    Clear-Host
+    Write-Host -------------------------------------------------------- -ForegroundColor Green
+    Write-Host "Hyper-V Storage Reports"                       -ForegroundColor White
+    Write-Host -------------------------------------------------------- -ForegroundColor Green
+    Write-Host "[1]  Full report" -ForegroundColor White
+    Write-Host "[2]  Storage Utilization" -ForegroundColor White
+    Write-Host "[3]  Storage IO - 2016 Only" -ForegroundColor White
+    Write-Host -------------------------------------------------------- -ForegroundColor Green
+    
+    $MenuChoice = Read-Host "Menu Choice"
+    
+    $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber   
+
+    $CSVInfo = foreach ($CSV in $CSVs) {
+        $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
+        $ClusterPath = $CSV.AccessPaths.Split("/")[0]
+        $ClusterSharedVolume = Get-ClusterSharedVolume -Name ($ClusterPath.Split("\")[2]) | Select-Object -ExpandProperty SharedVolumeInfo | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+        $VolumeBlock = Get-Volume | Where-Object ObjectID -like *$AccessPathVolumeID*
+        $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* -ErrorAction SilentlyContinue
+            [PSCustomObject]@{
+                "#" = $CSV.DiskNumber
+                Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
+                ClusterPath = $ClusterSharedVolume.FriendlyVolumeName
+                "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
+                "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                IOPS = $QOS.IOPS
+                Latency = [math]::Round($QOS.Latency, 2)
+                "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
+            }
+    }
+    if ($MenuChoice -eq 1) {
+        $CSVInfo | Format-Table -AutoSize
+    } elseif ($MenuChoice -eq 2) {
+        $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize           
+    } elseif ($MenuChoice -eq 3) {
+        $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize 
+    } else {
+        Write-Host "Incorrect Choice. Choose a number from the menu."
+        Start-Sleep -s 3
+        Get-HyperVStorageReport
     }
 }
