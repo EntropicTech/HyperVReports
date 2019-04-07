@@ -10,6 +10,7 @@ function Get-ClusterCheck {
     } else {
         $Script:ClusterCheck = $False
     }
+
 }
 
 function Get-HyperVReports {
@@ -269,7 +270,7 @@ function Get-HyperVStorageReport {
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host "[1]  Full report" -ForegroundColor White
     Write-Host "[2]  Storage Utilization" -ForegroundColor White
-    Write-Host "[3]  Storage IO - 2016 Only" -ForegroundColor White
+    Write-Host "[3]  Cluster Storage IO - 2016 Only" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     
     $MenuChoice = Read-Host "Menu Choice"
@@ -294,10 +295,26 @@ function Get-HyperVStorageReport {
                 "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
             }
     }
+    $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
+    $LocalDrives = foreach ($Node in $ClusterNodes) {
+        $Drives = Invoke-Command -ComputerName $Node { Get-Volume | Where-Object FileSystem -NE CSVFS | Where-Object DriveLetter -NE C }
+        foreach ($Drive in $Drives) {
+            [PSCustomObject]@{
+                ServerName = $Drive.PSComputerName
+                Drive = $Drive.DriveLetter
+                Block = $Drive.AllocationUnitSize
+                FileSystemLabel = $Drive.FileSystemLabel
+                Size = $Drive.Size
+                SizeRemaining = $Drive.SizeRemaining
+            }
+        }
+    }
     if ($MenuChoice -eq 1) {
         $CSVInfo | Format-Table -AutoSize
+        $LocalDrives | Format-Table -AutoSize
     } elseif ($MenuChoice -eq 2) {
-        $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize           
+        $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize
+        $LocalDrives | Format-Table -AutoSize           
     } elseif ($MenuChoice -eq 3) {
         $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize 
     } else {
