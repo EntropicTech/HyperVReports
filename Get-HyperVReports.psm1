@@ -2,24 +2,26 @@ function Get-HyperVReports {
     [CmdletBinding()]
     param(
     )
+    process {
+        $ClusterCheckTest = $False
+        $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
+        if ($ClusterCheckTest) {
+            $Script:ClusterCheck = $True
+            Get-HyperVReportsMenu
+        } else {
+            $Script:ClusterCheck = $False
+            Get-HyperVReportsMenu
+        }
 
-    $ClusterCheckTest = $False
-    $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
-    if ($ClusterCheckTest) {
-        $Script:ClusterCheck = $True
-        Get-HyperVReportsMenu
-    } else {
-        $Script:ClusterCheck = $False
-        Get-HyperVReportsMenu
+        $Script:OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
     }
-    $Script:OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
 }
 
 function Get-HyperVReportsMenu {
     [CmdletBinding()]
     param(
     )
-    begin{
+    begin {
         Clear-Host
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         Write-Host "                   Hyper-V Reports"                     -ForegroundColor White
@@ -31,7 +33,7 @@ function Get-HyperVReportsMenu {
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         $MenuChoice = Read-Host "Menu Choice"
     }
-    process{
+    process {
         if ($MenuChoice -eq 1) {
             Get-HyperVClusterLogs
         } elseif ($MenuChoice -eq 2) {
@@ -54,7 +56,7 @@ function Get-HyperVCAULogs {
     param(
     )
     begin {
-        try{
+        try {
             #Variables
             $Cluster = (Get-Cluster).Name
             $CAUDates = ( (Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
@@ -73,14 +75,15 @@ function Get-HyperVCAULogs {
         Write-Host -------------------------------------------------------- -ForegroundColor  Green
         $StartDateRequest = Read-Host "Which date would you like the logs from"
     }
-    process{
+    process {
         
         $StartDate = $StartDateRequest | Get-Date -Format MM/dd/yyyy
         Write-Host `n
         Write-Host "Collecting CAU logs and hotfix information..."
         
         #Collects HotFixs from cluster nodes.
-        try{
+        try {
+            $Hotfixes = $False
             $Hotfixes = foreach($Node in $ClusterNodes) {
             Get-HotFix -ComputerName $Node.Name | Where-Object { $_.InstalledOn -Match $StartDate }
             }
@@ -90,8 +93,9 @@ function Get-HyperVCAULogs {
         }
         
         #Collects eventlogs for cluster nodes.
-        try{
-            $EventLogs = foreach($Node in $ClusterNodes) {
+        try {
+            $EventLogs = $False
+            $EventLogs = foreach ($Node in $ClusterNodes) {
             Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object { $_.TimeCreated -Match $StartDate } | Select-Object TimeCreated,Message | Sort-Object TimeCreated
             }
         } catch {
@@ -99,18 +103,26 @@ function Get-HyperVCAULogs {
             Write-Host $_.Exception.Message -ForegroundColor Red
         }        
     }
-    end{    
+    end {    
     
         # Prints CAU logs
         Write-Host `n
         Write-Host "CAU logs from $StartDate for $Cluster." -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor  Green
-        $Eventlogs | Format-Table -AutoSize
+        if ($Eventlogs) {
+            $Eventlogs | Format-Table -AutoSize
+        } else {
+            Write-Host "No Logs Found"
+        } 
         
         # Prints HotFix logs
         Write-Host "Updates installed during this CAU run." -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor  Green
-        $Hotfixes | Format-Table -AutoSize       
+        if ($Hotfixes) {
+            $Hotfixes | Format-Table -AutoSize
+        } else {
+            Write-Host "No Hotfixes Found"
+        }              
     }
 
 }
@@ -130,7 +142,7 @@ function Get-HyperVClusterLogs {
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     $MenuChoice = Read-Host "Please select menu number"
     }
-    process{
+    process {
         # Collects information for filter.
         $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
     
@@ -151,9 +163,9 @@ function Get-HyperVClusterLogs {
             StartTime = $StartDate
             EndTime = $EndDate
         }
-        try{
+        try {
             $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
-        } catch{
+        } catch {
             Write-Host "Couldn't collect information from cluster nodes!" -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red            
         }
@@ -164,7 +176,7 @@ function Get-HyperVClusterLogs {
                 $EventLogs = $False
                 Write-Host $Node.Name -ForegroundColor Green
                 $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
-                if($EventLogs){
+                if ($EventLogs) {
                     $EventLogs
                 } else {
                     Write-Host "No Logs Found"
@@ -175,7 +187,7 @@ function Get-HyperVClusterLogs {
             $EventLogs = $False
             Write-Host $env:COMPUTERNAME -ForegroundColor Green
             $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
-            if($EventLogs){
+            if ($EventLogs) {
                 $EventLogs
             } else {
                  Write-Host "No Logs Found"
@@ -188,7 +200,7 @@ Function Get-HyperVMaintenanceQC {
     [CmdletBinding()]
     param(
     )
-    begin{
+    begin {
         # Gather Cluster Variables
         $Cluster = Get-Cluster
         $ClusterNodes = Get-ClusterNode
@@ -206,7 +218,7 @@ Function Get-HyperVMaintenanceQC {
     
         Clear-Host
     }
-    process{
+    process {
         Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
         # Building variable that has memory info for all of the cluster nodes.
@@ -262,7 +274,7 @@ Function Get-HyperVMaintenanceQC {
         # Sort the nonclustered VMs for the final report
         $NonClusteredVMsSorted = $VMs | Sort-Object VMState
     }
-    end{
+    end {
         
         # Clear screen and print report.
         Clear-Host
@@ -301,7 +313,7 @@ Function Get-HyperVMaintenanceQC {
         Write-Host "===========================================" -ForegroundColor DarkGray
 
         # Checks if nonclustered VMs exist and prints list.
-        if ($Null -eq $NonClusteredVMs){
+        if ($Null -eq $NonClusteredVMs) {
             Write-Host "          All VMs are clustered." -ForegroundColor Green
             Write-Host "-------------------------------------------" -ForegroundColor DarkGray
         } else {
