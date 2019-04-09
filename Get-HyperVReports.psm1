@@ -1,4 +1,4 @@
-function Get-ClusterCheck {
+function Get-HyperVReports {
     [CmdletBinding()]
     param(
     )
@@ -7,13 +7,15 @@ function Get-ClusterCheck {
     $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
     if ($ClusterCheckTest) {
         $Script:ClusterCheck = $True
+        Get-HyperVReportsMenu
     } else {
         $Script:ClusterCheck = $False
+        Get-HyperVReportsMenu
     }
-
+    $Script:OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
 }
 
-function Get-HyperVReports {
+function Get-HyperVReportsMenu {
     [CmdletBinding()]
     param(
     )
@@ -252,7 +254,6 @@ Function Get-HyperVMaintenanceQC {
     }
 
     $NonClusteredVMsSorted = $VMs | Sort-Object VMState
-
     foreach ($VM in $NonClusteredVMsSorted) {
         Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
     }
@@ -275,14 +276,16 @@ function Get-HyperVStorageReport {
     
     $MenuChoice = Read-Host "Menu Choice"
     
+    $OSVersion = [environment]::OSVersion.Version.Major
     $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber   
-
     $CSVInfo = foreach ($CSV in $CSVs) {
         $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
         $ClusterPath = $CSV.AccessPaths.Split("/")[0]
-        $ClusterSharedVolume = Get-ClusterSharedVolume -Name ($ClusterPath.Split("\")[2]) | Select-Object -ExpandProperty SharedVolumeInfo | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+        $FriendlyPath = ($ClusterPath).Split("\")[2]
+        $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like *$FriendlyPath* | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
         $VolumeBlock = Get-Volume | Where-Object ObjectID -like *$AccessPathVolumeID*
-        $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* -ErrorAction SilentlyContinue
+        if ($OSVersion -eq 10) {
+            $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
             [PSCustomObject]@{
                 "#" = $CSV.DiskNumber
                 Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
@@ -294,27 +297,21 @@ function Get-HyperVStorageReport {
                 Latency = [math]::Round($QOS.Latency, 2)
                 "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
             }
-    }
-    $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
-    $LocalDrives = foreach ($Node in $ClusterNodes) {
-        $Drives = Invoke-Command -ComputerName $Node { Get-Volume | Where-Object FileSystem -NE CSVFS | Where-Object DriveLetter -NE C }
-        foreach ($Drive in $Drives) {
+        } else {
             [PSCustomObject]@{
-                ServerName = $Drive.PSComputerName
-                Drive = $Drive.DriveLetter
-                Block = $Drive.AllocationUnitSize
-                FileSystemLabel = $Drive.FileSystemLabel
-                Size = $Drive.Size
-                SizeRemaining = $Drive.SizeRemaining
+                "#" = $CSV.DiskNumber
+                Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
+                ClusterPath = $ClusterSharedVolume.FriendlyVolumeName
+                "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
+                "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
             }
-        }
+        }       
     }
     if ($MenuChoice -eq 1) {
         $CSVInfo | Format-Table -AutoSize
-        $LocalDrives | Format-Table -AutoSize
     } elseif ($MenuChoice -eq 2) {
-        $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize
-        $LocalDrives | Format-Table -AutoSize           
+        $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize       
     } elseif ($MenuChoice -eq 3) {
         $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize 
     } else {
