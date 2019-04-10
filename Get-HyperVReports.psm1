@@ -149,9 +149,11 @@ function Get-HyperVClusterLogs {
     $MenuChoice = Read-Host "Please select menu number"
     }
     process {
-        # Collects information for filter.
+        
+        # Collects text to filter the event log with.
         $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
-    
+        
+        #Builds a 24hour $StartDate and #EndDate unless date is provided.
         if ($MenuChoice -eq 1) {
             $StartDate = (Get-Date).AddDays(-1)   
             $EndDate = (Get-Date).AddDays(1)   
@@ -255,7 +257,7 @@ Function Get-HyperVMaintenanceQC {
 
         # Collect unclustered VMs
         $NonClusteredVMs = foreach ($Node in $ClusterNodes) {
-            Get-VM -ComputerName $Node.Name | Where-Object { $_.IsClustered -eq $False }
+            Get-VM -ComputerName $Node.Name | Where-Object IsClustered -eq $False 
         }
     
         # Create the object to print in unclustered VM report
