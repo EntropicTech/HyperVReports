@@ -3,6 +3,12 @@ function Get-HyperVReports {
     param(
     )
     process {
+        # Requires -RunAsAdministrator
+        
+        # Sets Console to black background
+        $host.UI.RawUI.BackgroundColor = "Black"
+        
+        # Checks to see if the cluster service is running.
         $ClusterCheckTest = $False
         $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
         if ($ClusterCheckTest) {
@@ -13,6 +19,7 @@ function Get-HyperVReports {
             Get-HyperVReportsMenu
         }
 
+        # Pull operating system version
         $Script:OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
     }
 }
@@ -30,6 +37,7 @@ function Get-HyperVReportsMenu {
         Write-Host "[2]  Maintenance QC" -ForegroundColor White
         Write-Host "[3]  Cluster Aware Update History" -ForegroundColor White
         Write-Host "[4]  Storage Reports" -ForegroundColor White
+        Write-Host "[5]  VM Reports" -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         $MenuChoice = Read-Host "Menu Choice"
     }
@@ -42,6 +50,8 @@ function Get-HyperVReportsMenu {
             Get-HyperVCAULogs
         } elseif ($MenuChoice -eq 4) {
             Get-HyperVStorageReport
+        } elseif ($MenuChoice -eq 5) {
+            Get-HyperVVMInfo
         } else {
             Clear-Host
             Write-Host "Incorrect Choice. Choose a number from the menu."
@@ -124,7 +134,6 @@ function Get-HyperVCAULogs {
             Write-Host "No Hotfixes Found"
         }              
     }
-
 }
 
 function Get-HyperVClusterLogs {
@@ -135,7 +144,7 @@ function Get-HyperVClusterLogs {
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "Hyper-V Cluster Event Log Search"                       -ForegroundColor White
+    Write-Host "           Hyper-V Cluster Event Log Search"            -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host "[1]  Search last 24 hours" -ForegroundColor White
     Write-Host "[2]  Specify date range" -ForegroundColor White
@@ -143,9 +152,11 @@ function Get-HyperVClusterLogs {
     $MenuChoice = Read-Host "Please select menu number"
     }
     process {
-        # Collects information for filter.
+        
+        # Collects text to filter the event log with.
         $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
-    
+        
+        #Builds a 24hour $StartDate and #EndDate unless date is provided.
         if ($MenuChoice -eq 1) {
             $StartDate = (Get-Date).AddDays(-1)   
             $EndDate = (Get-Date).AddDays(1)   
@@ -175,7 +186,7 @@ function Get-HyperVClusterLogs {
             foreach ($Node in $ClusterNodes) {
                 $EventLogs = $False
                 Write-Host $Node.Name -ForegroundColor Green
-                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
                 if ($EventLogs) {
                     $EventLogs
                 } else {
@@ -230,7 +241,7 @@ Function Get-HyperVMaintenanceQC {
                 UsableMemory = [math]::Round( (Get-Counter -ComputerName $Node.Name -Counter "\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory").Readings.Split(":")[1] / 1024 )
             }
         }
-
+        
         # Adding the hosts memory values together.
         foreach ($VMHost in $VMHostMemory) {
             $TotalVMHostMemory += $VMHost.TotalMemory
@@ -244,11 +255,12 @@ Function Get-HyperVMaintenanceQC {
         $SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
         $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
         $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
-        $HAMemory = $SingleNodeMemory - ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
+        $UsableMemoryAfterFailure = ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
+        $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure        
 
         # Collect unclustered VMs
         $NonClusteredVMs = foreach ($Node in $ClusterNodes) {
-            Get-VM -ComputerName $Node.Name | Where-Object { $_.IsClustered -eq $False }
+            Get-VM -ComputerName $Node.Name | Where-Object IsClustered -eq $False 
         }
     
         # Create the object to print in unclustered VM report
@@ -285,14 +297,14 @@ Function Get-HyperVMaintenanceQC {
             Write-Host "===========================================" -ForegroundColor DarkGray
         } else {
             Write-Host "===========================================" -ForegroundColor DarkGray
-            Write-Host "       $Cluster has $Nodecount nodes."
+            Write-Host "         $Cluster has $Nodecount nodes."
             Write-Host "===========================================" -ForegroundColor DarkGray
         }
 
         # Print Node Memory Report                      
         Write-Host "  $TotalVMHostMemory GB - Physical memory of cluster."   
         Write-Host "  $SingleNodeMemory GB - Physical memory of each node."    
-        Write-Host "  $TotalUsableVMHostMemory GB - Useable memory of cluster."    
+        Write-Host "  $UsableMemoryAfterFailure GB - Useable memory with 1 failure."    
         Write-Host "===========================================" -ForegroundColor DarkGray
 
         # Prints error if all nodes don't have the same amount of memory.    
@@ -302,7 +314,7 @@ Function Get-HyperVMaintenanceQC {
         }
         
         # Checks if cluster is HA.    
-        if ($TotalUsableVMHostMemory -le $SingleNodeMemory) {       
+        if ($TotalUsableVMHostMemory -le $SingleNodeMemory -and $HAMemory -gt 0) {       
             Write-host " Cluster would NOT survive single failure!" -ForegroundColor Red
             Write-Host "-------------------------------------------" -ForegroundColor DarkGray       
             Write-Host " More than $HAMemory GB of memory needed to be HA."
@@ -337,7 +349,7 @@ function Get-HyperVStorageReport {
         # Prints the Menu. Accepts input.
         Clear-Host
         Write-Host -------------------------------------------------------- -ForegroundColor Green
-        Write-Host "Hyper-V Storage Reports"                       -ForegroundColor White
+        Write-Host "               Hyper-V Storage Reports"                       -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         Write-Host "[1]  Full report" -ForegroundColor White
         Write-Host "[2]  Storage Utilization" -ForegroundColor White
@@ -364,7 +376,7 @@ function Get-HyperVStorageReport {
                     $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
                     [PSCustomObject]@{
                         "#" = $CSV.DiskNumber
-                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
+                        Block = $VolumeBlock.AllocationUnitSize
                         ClusterPath = $ClusterSharedVolume.FriendlyVolumeName
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
@@ -393,7 +405,7 @@ function Get-HyperVStorageReport {
         
         # Prints data report.
         if ($MenuChoice -eq 1) {
-            $CSVInfo | Format-Table -AutoSize
+            $CSVInfo | Sort-Object "#" | Format-Table -AutoSize
         } elseif ($MenuChoice -eq 2) {
             $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize       
         } elseif ($MenuChoice -eq 3) {
@@ -405,3 +417,79 @@ function Get-HyperVStorageReport {
         }
     }
 }
+
+function Get-HyperVVMInfo {
+    [CmdletBinding()]
+    param(
+    )
+    begin {
+        
+        # Prints the Menu. Accepts input.
+        Clear-Host
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        Write-Host "                  Hyper-V VM Reports"                   -ForegroundColor White
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        Write-Host "[1]  Full report" -ForegroundColor White
+        Write-Host "[2]  VM Resource Allocation" -ForegroundColor White
+        Write-Host "[3]  VM Networking" -ForegroundColor White
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+    
+        $MenuChoice = Read-Host "Menu Choice"
+    }    
+    process {
+        
+        # Pull Cluster node data for script
+        try {
+            $ClusterNodes = Get-ClusterNode -ErrorAction Stop
+        } catch {
+            Write-Host "Couldn't collect information from cluster nodes!" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red            
+        }
+        
+        # Filter for IPv4 addresses
+        $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
+        
+        # Collects VMs into variable for foreach loop
+        $VMs = foreach ($Node in $ClusterNodes) {
+            Get-VM -ComputerName $Node.Name    
+        }
+    
+        try{
+        
+            # Collects information from VMs and creates $VMInfo variable with all VM info.
+            $VMInfo = foreach ($VM in $VMs) {
+                $VMNetworkAdapter = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
+                $VMNetworkAdapterVlan = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName | Get-VMNetworkAdapterVlan
+                    [PSCustomObject]@{
+                        Host = $VM.ComputerName
+                        VMName = $VM.VMName
+                        vCPU = $VM.ProcessorCount
+                        RAM = [math]::Round($VM.MemoryStartup /1GB)
+                        IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
+                        MAC = $VMNetworkAdapter.MacAddress
+                        vSwitch = $VMNetworkAdapter.SwitchName
+                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
+                    }   
+            }                    
+        } catch {
+            Write-Host "Couldn't collect information from the VMs!" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red              
+        }       
+    }
+    end {
+        
+        # Prints data report.
+        if ($MenuChoice -eq 1) {
+            $VMInfo | Sort-Object Host | Format-Table -AutoSize
+        } elseif ($MenuChoice -eq 2) {
+            $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize       
+        } elseif ($MenuChoice -eq 3) {
+            $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize 
+        } else {
+            Write-Host "Incorrect Choice. Choose a number from the menu."
+            Start-Sleep -s 3
+            Get-HyperVStorageReport
+        }
+    }    
+}
+Get-HyperVReports
