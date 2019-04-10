@@ -385,7 +385,7 @@ function Get-HyperVStorageReport {
                 } else {
                     [PSCustomObject]@{
                         "#" = $CSV.DiskNumber
-                        Block = $VolumeBlock.AllocationUnitSize
+                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
                         ClusterPath = $ClusterSharedVolume.FriendlyVolumeName
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
@@ -402,7 +402,7 @@ function Get-HyperVStorageReport {
         
         # Prints data report.
         if ($MenuChoice -eq 1) {
-            $CSVInfo | Format-Table -AutoSize
+            $CSVInfo | Sort-Object "#" | Format-Table -AutoSize
         } elseif ($MenuChoice -eq 2) {
             $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize       
         } elseif ($MenuChoice -eq 3) {
