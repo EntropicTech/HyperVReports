@@ -37,6 +37,7 @@ function Get-HyperVReportsMenu {
         Write-Host "[2]  Maintenance QC" -ForegroundColor White
         Write-Host "[3]  Cluster Aware Update History" -ForegroundColor White
         Write-Host "[4]  Storage Reports" -ForegroundColor White
+        Write-Host "[5]  VM Reports" -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         $MenuChoice = Read-Host "Menu Choice"
     }
@@ -49,6 +50,8 @@ function Get-HyperVReportsMenu {
             Get-HyperVCAULogs
         } elseif ($MenuChoice -eq 4) {
             Get-HyperVStorageReport
+        } elseif ($MenuChoice -eq 5) {
+            Get-HyperVVMInfo
         } else {
             Clear-Host
             Write-Host "Incorrect Choice. Choose a number from the menu."
@@ -413,5 +416,80 @@ function Get-HyperVStorageReport {
             Get-HyperVStorageReport
         }
     }
+}
+
+function Get-HyperVVMInfo {
+    [CmdletBinding()]
+    param(
+    )
+    begin {
+        
+        # Prints the Menu. Accepts input.
+        Clear-Host
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        Write-Host "                  Hyper-V VM Reports"                   -ForegroundColor White
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+        Write-Host "[1]  Full report" -ForegroundColor White
+        Write-Host "[2]  VM Resource Allocation" -ForegroundColor White
+        Write-Host "[3]  VM Networking" -ForegroundColor White
+        Write-Host -------------------------------------------------------- -ForegroundColor Green
+    
+        $MenuChoice = Read-Host "Menu Choice"
+    }    
+    process {
+        
+        # Pull Cluster node data for script
+        try {
+            $ClusterNodes = Get-ClusterNode -ErrorAction Stop
+        } catch {
+            Write-Host "Couldn't collect information from cluster nodes!" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red            
+        }
+        
+        # Filter for IPv4 addresses
+        $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
+        
+        # Collects VMs into variable for foreach loop
+        $VMs = foreach ($Node in $ClusterNodes) {
+            Get-VM -ComputerName $Node.Name    
+        }
+    
+        try{
+        
+            # Collects information from VMs and creates $VMInfo variable with all VM info.
+            $VMInfo = foreach ($VM in $VMs) {
+                $VMNetworkAdapter = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
+                $VMNetworkAdapterVlan = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName | Get-VMNetworkAdapterVlan
+                    [PSCustomObject]@{
+                        Host = $VM.ComputerName
+                        VMName = $VM.VMName
+                        vCPU = $VM.ProcessorCount
+                        RAM = [math]::Round($VM.MemoryStartup /1GB)
+                        IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
+                        MAC = $VMNetworkAdapter.MacAddress
+                        vSwitch = $VMNetworkAdapter.SwitchName
+                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
+                    }   
+            }                    
+        } catch {
+            Write-Host "Couldn't collect information from the VMs!" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red              
+        }       
+    }
+    end {
+        
+        # Prints data report.
+        if ($MenuChoice -eq 1) {
+            $VMInfo | Sort-Object Host | Format-Table -AutoSize
+        } elseif ($MenuChoice -eq 2) {
+            $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize       
+        } elseif ($MenuChoice -eq 3) {
+            $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize 
+        } else {
+            Write-Host "Incorrect Choice. Choose a number from the menu."
+            Start-Sleep -s 3
+            Get-HyperVStorageReport
+        }
+    }    
 }
 Get-HyperVReports
