@@ -67,7 +67,7 @@ function Get-HyperVCAULogs {
     )
     begin {
         try {
-            #Variables
+            # Variables
             $Cluster = (Get-Cluster).Name
             $CAUDates = ( (Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
             $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
@@ -87,26 +87,28 @@ function Get-HyperVCAULogs {
     }
     process {
         
-        $StartDate = $StartDateRequest | Get-Date -Format MM/dd/yyyy
         Write-Host `n
         Write-Host "Collecting CAU logs and hotfix information..."
+
+        # Formatting provided startdate for use in filtering.
+        $StartDate = $StartDateRequest | Get-Date -Format MM/dd/yyyy
         
-        #Collects HotFixs from cluster nodes.
+        # Collects HotFixs from cluster nodes.
         try {
             $Hotfixes = $False
-            $Hotfixes = foreach($Node in $ClusterNodes) {
-            Get-HotFix -ComputerName $Node.Name | Where-Object { $_.InstalledOn -Match $StartDate }
+            $Hotfixes = foreach ($Node in $ClusterNodes) {
+            Get-HotFix -ComputerName $Node.Name | Where-Object InstalledOn -Match $StartDate
             }
         } catch {
             Write-Host "Couldn't collect the hotfixes from cluster nodes!" -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
         }
         
-        #Collects eventlogs for cluster nodes.
+        # Collects eventlogs for cluster nodes.
         try {
             $EventLogs = $False
             $EventLogs = foreach ($Node in $ClusterNodes) {
-            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object { $_.TimeCreated -Match $StartDate } | Select-Object TimeCreated,Message | Sort-Object TimeCreated
+            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message | Sort-Object TimeCreated
             }
         } catch {
             Write-Host "Couldn't collect the event logs from cluster nodes!" -ForegroundColor Red
@@ -114,7 +116,9 @@ function Get-HyperVCAULogs {
         }        
     }
     end {    
-    
+        
+        Clear-Host
+
         # Prints CAU logs
         Write-Host `n
         Write-Host "CAU logs from $StartDate for $Cluster." -ForegroundColor White
@@ -452,8 +456,7 @@ function Get-HyperVVMInfo {
         # Collects VMs into variable for foreach loop
         $VMs = foreach ($Node in $ClusterNodes) {
             Get-VM -ComputerName $Node.Name    
-        }
-    
+        }   
         try{
         
             # Collects information from VMs and creates $VMInfo variable with all VM info.
@@ -466,9 +469,9 @@ function Get-HyperVVMInfo {
                         vCPU = $VM.ProcessorCount
                         RAM = [math]::Round($VM.MemoryStartup /1GB)
                         IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
+                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
                         MAC = $VMNetworkAdapter.MacAddress
                         vSwitch = $VMNetworkAdapter.SwitchName
-                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
                     }   
             }                    
         } catch {
