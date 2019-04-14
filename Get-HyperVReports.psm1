@@ -42,22 +42,21 @@ function Get-HyperVReportsMenu {
         $MenuChoice = Read-Host "Menu Choice"
     }
     process {
-        if ($MenuChoice -eq 1) {
-            Get-HyperVClusterLogs
-        } elseif ($MenuChoice -eq 2) {
-            Get-HyperVMaintenanceQC
-        } elseif ($MenuChoice -eq 3) {
-            Get-HyperVCAULogs
-        } elseif ($MenuChoice -eq 4) {
-            Get-HyperVStorageReport
-        } elseif ($MenuChoice -eq 5) {
-            Get-HyperVVMInfo
-        } else {
-            Clear-Host
-            Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
-            Get-HyperVReports
-        }
+        
+        # Prints report based on MenuChoice.
+        switch ($MenuChoice) {
+            1 { Get-HyperVClusterLogs }
+            2 { Get-HyperVMaintenanceQC }
+            3 { Get-HyperVCAULogs }
+            4 { Get-HyperVStorageReport }
+            5 { Get-HyperVVMInfo }
+            default { 
+                Clear-Host
+                Write-Host "Incorrect Choice. Choose a number from the menu."
+                Start-Sleep -s 3
+                Get-HyperVReports 
+            }
+        }  
     }
 }
 
@@ -339,8 +338,7 @@ function Get-HyperVStorageReport {
         Write-Host "[1]  Full report" -ForegroundColor White
         Write-Host "[2]  Storage Utilization" -ForegroundColor White
         Write-Host "[3]  Cluster Storage IO - 2016 Only" -ForegroundColor White
-        Write-Host -------------------------------------------------------- -ForegroundColor Green
-    
+        Write-Host -------------------------------------------------------- -ForegroundColor Green    
         $MenuChoice = Read-Host "Menu Choice"
     }
     process {   
@@ -388,17 +386,16 @@ function Get-HyperVStorageReport {
     }
     end {
         
-        # Prints data report.
-        if ($MenuChoice -eq 1) {
-            $CSVInfo | Sort-Object "#" | Format-Table -AutoSize
-        } elseif ($MenuChoice -eq 2) {
-            $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize       
-        } elseif ($MenuChoice -eq 3) {
-            $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize 
-        } else {
-            Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
-            Get-HyperVStorageReport
+        # Prints report based on MenuChoice.
+        switch ($MenuChoice) {
+            1 { $CSVInfo | Sort-Object "#" | Format-Table -AutoSize }
+            2 { $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
+            3 { $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
+            default { 
+                Write-Host "Incorrect Choice. Choose a number from the menu."
+                Start-Sleep -s 3
+                Get-HyperVStorageReport
+            }
         }
     }
 }
@@ -417,13 +414,12 @@ function Get-HyperVVMInfo {
         Write-Host "[1]  Full report" -ForegroundColor White
         Write-Host "[2]  VM Resource Allocation" -ForegroundColor White
         Write-Host "[3]  VM Networking" -ForegroundColor White
-        Write-Host -------------------------------------------------------- -ForegroundColor Green
-    
+        Write-Host -------------------------------------------------------- -ForegroundColor Green    
         $MenuChoice = Read-Host "Menu Choice"
     }    
     process {
         
-        # Pull Cluster node data for script
+        # Pull Cluster node data for script.
         try {
             $ClusterNodes = Get-ClusterNode -ErrorAction Stop
         } catch {
@@ -462,17 +458,16 @@ function Get-HyperVVMInfo {
     }
     end {
         
-        # Prints data report.
-        if ($MenuChoice -eq 1) {
-            $VMInfo | Sort-Object Host | Format-Table -AutoSize
-        } elseif ($MenuChoice -eq 2) {
-            $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize       
-        } elseif ($MenuChoice -eq 3) {
-            $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize 
-        } else {
-            Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
-            Get-HyperVStorageReport
+        # Prints report based on MenuChoice.
+        switch ($MenuChoice) {
+            1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
+            2 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
+            3 { $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize }
+            default { 
+                Write-Host "Incorrect Choice. Choose a number from the menu."
+                Start-Sleep -s 3
+                Get-HyperVStorageReport
+            }
         }
     }    
 }
