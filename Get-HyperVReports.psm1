@@ -108,7 +108,7 @@ function Get-HyperVCAULogs {
         try {
             $EventLogs = $False
             $EventLogs = foreach ($Node in $ClusterNodes) {
-            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message | Sort-Object TimeCreated
+            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
             }
         } catch {
             Write-Host "Couldn't collect the event logs from cluster nodes!" -ForegroundColor Red
@@ -124,7 +124,7 @@ function Get-HyperVCAULogs {
         Write-Host "CAU logs from $StartDate for $Cluster." -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor  Green
         if ($Eventlogs) {
-            $Eventlogs | Format-Table -AutoSize
+            $Eventlogs | Sort-Object TimeCreated | Format-Table -AutoSize
         } else {
             Write-Host "No Logs Found"
         } 
@@ -190,9 +190,9 @@ function Get-HyperVClusterLogs {
             foreach ($Node in $ClusterNodes) {
                 $EventLogs = $False
                 Write-Host $Node.Name -ForegroundColor Green
-                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message
                 if ($EventLogs) {
-                    $EventLogs
+                    $EventLogs | Sort-Object TimeCreated | Format-List
                 } else {
                     Write-Host "No Logs Found"
                     Write-Host `n
@@ -201,9 +201,9 @@ function Get-HyperVClusterLogs {
         } elseif ($ClusterCheck -eq $False) {
             $EventLogs = $False
             Write-Host $env:COMPUTERNAME -ForegroundColor Green
-            $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+            $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message 
             if ($EventLogs) {
-                $EventLogs
+                $EventLogs | Sort-Object TimeCreated | Format-List
             } else {
                  Write-Host "No Logs Found"
             }
@@ -266,29 +266,10 @@ Function Get-HyperVMaintenanceQC {
         $NonClusteredVMs = foreach ($Node in $ClusterNodes) {
             Get-VM -ComputerName $Node.Name | Where-Object IsClustered -eq $False 
         }
-    
-        # Create the object to print in unclustered VM report
-        $VMs = foreach ($VM in $NonClusteredVMs) {
-            if ($VM.State -eq "Running") { 
+        
+        # Sort Nonclustered VMs by their state for readability.
+        $NonClusteredVMsSorted = $NonClusteredVMs | Sort-Object State
 
-                [PSCustomObject]@{
-                    VMName = $VM.Name
-                    VMState = $VM.State
-                    VMHost = $VM.Computername
-                }
-            } 
-            if ($VM.State -eq "Off") {
-
-                [PSCustomObject]@{
-                    VMName = $VM.Name
-                    VMState = $VM.State
-                    VMHost = $VM.Computername
-                }
-            }
-        }
-    
-        # Sort the nonclustered VMs for the final report
-        $NonClusteredVMsSorted = $VMs | Sort-Object VMState
     }
     end {
         
@@ -339,7 +320,7 @@ Function Get-HyperVMaintenanceQC {
         
         # Prints nonclustered VMs.
         foreach ($VM in $NonClusteredVMsSorted) {
-            Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
+            Write-Host  $VM.ComputerName - $VM.State - $VM.Name -ForegroundColor Yellow
         }
     }
 }
