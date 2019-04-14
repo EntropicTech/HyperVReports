@@ -1,2 +1,185 @@
 # Get-HyperVReports
-Collection of informational and troubleshooting reports for Hyper-V environments.
+
+Brings up menu to choose desired report.
+
+```
+--------------------------------------------------------
+                   Hyper-V Reports
+--------------------------------------------------------
+[1]  Hyper-V Cluster Log Search
+[2]  Maintenance QC
+[3]  Cluster Aware Update History
+[4]  Storage Reports
+[5]  VM Reports
+--------------------------------------------------------
+Menu Choice: 
+```
+
+# Get-HyperVClusterLogs
+
+Filter the Hyper-V Cluster logs by time range and error text.
+
+```
+--------------------------------------------------------
+           Hyper-V Cluster Event Log Search
+--------------------------------------------------------
+[1]  Search last 24 hours
+[2]  Specify date range
+--------------------------------------------------------
+Please select menu number: 1
+Enter text to filter the Event Logs by VM Name or Event log text: RDP
+
+ET-HV-01
+
+TimeCreated  : 4/14/2019 7:55:18 AM
+ProviderName : Microsoft-Windows-Hyper-V-Worker
+Message      : 'ET-RDP-01' was reset by the guest operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
+
+TimeCreated  : 4/14/2019 7:55:38 AM
+ProviderName : Microsoft-Windows-Hyper-V-Chipset
+Message      : 'ET-RDP-01' successfully booted an operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
+
+
+ET-HV-02
+
+TimeCreated  : 4/14/2019 7:55:18 AM
+ProviderName : Microsoft-Windows-Hyper-V-Worker
+Message      : 'ET-RDP-01' was reset by the guest operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
+
+TimeCreated  : 4/14/2019 7:55:38 AM
+ProviderName : Microsoft-Windows-Hyper-V-Chipset
+Message      : 'ET-RDP-01' successfully booted an operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
+```
+
+# Get-HyperVMaintenanceQC
+
+Verifies that the cluster can sustain a single node failure and that all VMs are clustered.
+```
+===========================================
+         EntropicClus has 2 nodes.
+===========================================
+  1024 GB - Physical memory of cluster.
+  256 GB - Physical memory of each node.
+  200 GB - Useable memory with 1 failure.
+===========================================
+ Cluster would NOT survive single failure!
+-------------------------------------------
+ More than 56 GB of memory needed to be HA.
+===========================================
+          All VMs are clustered.
+-------------------------------------------
+```
+
+# Get-HyperVCAULogs
+
+Shows report of dates CAU was performed and then pulls the CAU logs and hotfixes installed for selected date.
+```
+--------------------------------------------------------
+Dates CAU was performed:
+--------------------------------------------------------
+04/07/2019
+03/24/2019
+03/17/2019
+03/14/2019
+02/08/2019
+02/07/2019
+01/05/2019
+12/01/2018
+11/08/2018
+11/03/2018
+09/22/2018
+09/08/2018
+09/01/2018
+08/04/2018
+07/29/2018
+07/20/2018
+05/13/2018
+--------------------------------------------------------
+Which date would you like the logs from: 03/24/2019
+
+Collecting CAU logs and hotfix information...
+
+CAU logs from 03/24/2019 for EntropicClus.
+--------------------------------------------------------
+
+TimeCreated          Message                                                                                                                              
+-----------          -------                                                                                                                              
+3/24/2019 4:00:04 AM Starting CAU run {32FE9A85-A946-48AE-9E95-E33F8732807E} on cluster EntropicClus.                                                     
+3/24/2019 4:00:19 AM Ignoring WUA warning The computer needs to be rebooted to complete past installation. The result of search may be incorrect. 0x240005
+3/24/2019 4:00:19 AM Scan for updates succeeded. Found 2 updates                                                                                          
+3/24/2019 4:00:26 AM Ignoring WUA warning The computer needs to be rebooted to complete past installation. The result of search may be incorrect. 0x240005
+3/24/2019 4:22:41 AM Download for updates succeeded. Downloaded 2 updates                                                                                 
+3/24/2019 4:23:35 AM Node ET-HV-01 entered node maintenance mode.                                                                                         
+3/24/2019 4:24:07 AM Ignoring WUA warning The computer needs to be rebooted to complete past installation. The result of search may be incorrect. 0x240005
+3/24/2019 5:16:09 AM Install for updates succeeded. Installed 2 updates                                                                                   
+3/24/2019 5:16:10 AM Rebooting node ET-HV-01.                                                                                                             
+3/24/2019 5:57:43 AM Node ET-HV-01 has rebooted successfully.                                                                                             
+3/24/2019 5:58:05 AM Scan for updates succeeded. Found 1 updates                                                                                          
+3/24/2019 5:58:46 AM Download for updates succeeded. Downloaded 1 updates                                                                                 
+3/24/2019 5:58:58 AM Install for updates succeeded. Installed 1 updates                                                                                   
+3/24/2019 5:59:03 AM Scan for updates succeeded. Found 0 updates                                                                                          
+3/24/2019 5:59:03 AM Node ET-HV-01 exited node maintenance mode.                                                                                          
+3/24/2019 5:59:11 AM Starting CAU run {32FE9A85-A946-48AE-9E95-E33F8732807E} on cluster EntropicClus.                                                     
+3/24/2019 5:59:20 AM Scan for updates succeeded. Found 2 updates                                                                                          
+3/24/2019 6:27:40 AM Download for updates succeeded. Downloaded 2 updates                                                                                 
+3/24/2019 6:28:45 AM Node ET-HV-02 entered node maintenance mode.                                                                                           
+3/24/2019 6:45:30 AM Install for updates succeeded. Installed 2 updates                                                                                   
+3/24/2019 6:45:31 AM Rebooting node ET-HV-02.                                                                                                               
+3/24/2019 6:52:59 AM Node ET-HV-02 has rebooted successfully.                                                                                               
+3/24/2019 6:53:15 AM Node ET-HV-02 exited node maintenance mode.                                                                                            
+3/24/2019 6:53:15 AM Scan for updates succeeded. Found 0 updates                                                                                          
+3/24/2019 6:53:15 AM CAU run {32FE9A85-A946-48AE-9E95-E33F8732807E} on cluster EntropicClus completed successfully.                                       
+
+
+Updates installed during this CAU run.
+--------------------------------------------------------
+
+Source   Description HotFixID  InstalledBy         InstalledOn          
+------   ----------- --------  -----------         -----------          
+ET-HV-01 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
+ET-HV-02 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
+```
+
+# Get-HyperVStorageReport
+
+Pulls various reports for the Cluster Shared Volumes
+
+```
+--------------------------------------------------------
+               Hyper-V Storage Reports
+--------------------------------------------------------
+[1]  Full report
+[2]  Storage Utilization
+[3]  Cluster Storage IO - 2016 Only
+--------------------------------------------------------
+Menu Choice: 1
+
+# Block ClusterPath               Used(GB) Size(GB) Free % IOPS Latency MB/s
+- ----- -----------               -------- -------- ------ ---- ------- ----
+1 65536 C:\ClusterStorage\Volume2      978     1000    2.2  929   11.89  5.7
+```
+
+# Get-HyperVVMInfo
+
+Prints various reports for the VMs
+
+```
+--------------------------------------------------------
+                  Hyper-V VM Reports
+--------------------------------------------------------
+[1]  Full report
+[2]  VM Resource Allocation
+[3]  VM Networking
+--------------------------------------------------------
+Menu Choice: 1
+
+Host     VMName        vCPU RAM IPAddress     VLAN MAC          vSwitch  
+----     ------        ---- --- ---------     ---- ---          -------  
+ET-HV-01 ET-DC-2        2   2 192.168.0.60    0    00155D0A0C55 SETswitch
+ET-HV-01 ET-RDP-01      4   4 192.168.0.18    0    00155D002027 SETswitch
+ET-HV-01 ET-DC-01       2   2 192.168.0.20    0    00155D002021 SETswitch
+ET-HV-01 ET-FS-01       4   4 192.168.0.7     0    00155D0A0C51 SETswitch
+ET-HV-01 ET-RDP-03      4   4 192.168.0.25    0    00155D002026 SETswitch
+ET-HV-02 ET-QB-01       8   8 192.168.0.23    0    00155D002023 SETswitch
+ET-HV-02 ET-RDP-02      4   4 192.168.0.45    0    00155D0A0C54 SETswitch
+```
