@@ -42,22 +42,21 @@ function Get-HyperVReportsMenu {
         $MenuChoice = Read-Host "Menu Choice"
     }
     process {
-        if ($MenuChoice -eq 1) {
-            Get-HyperVClusterLogs
-        } elseif ($MenuChoice -eq 2) {
-            Get-HyperVMaintenanceQC
-        } elseif ($MenuChoice -eq 3) {
-            Get-HyperVCAULogs
-        } elseif ($MenuChoice -eq 4) {
-            Get-HyperVStorageReport
-        } elseif ($MenuChoice -eq 5) {
-            Get-HyperVVMInfo
-        } else {
-            Clear-Host
-            Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
-            Get-HyperVReports
-        }
+        
+        # Prints report based on MenuChoice.
+        switch ($MenuChoice) {
+            1 { Get-HyperVClusterLogs }
+            2 { Get-HyperVMaintenanceQC }
+            3 { Get-HyperVCAULogs }
+            4 { Get-HyperVStorageReport }
+            5 { Get-HyperVVMInfo }
+            default { 
+                Clear-Host
+                Write-Host "Incorrect Choice. Choose a number from the menu."
+                Start-Sleep -s 3
+                Get-HyperVReports 
+            }
+        }  
     }
 }
 
@@ -67,7 +66,7 @@ function Get-HyperVCAULogs {
     )
     begin {
         try {
-            #Variables
+            # Variables
             $Cluster = (Get-Cluster).Name
             $CAUDates = ( (Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
             $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
@@ -87,26 +86,28 @@ function Get-HyperVCAULogs {
     }
     process {
         
-        $StartDate = $StartDateRequest | Get-Date -Format MM/dd/yyyy
         Write-Host `n
         Write-Host "Collecting CAU logs and hotfix information..."
+
+        # Formatting provided startdate for use in filtering.
+        $StartDate = $StartDateRequest | Get-Date -Format MM/dd/yyyy
         
-        #Collects HotFixs from cluster nodes.
+        # Collects HotFixs from cluster nodes.
         try {
             $Hotfixes = $False
-            $Hotfixes = foreach($Node in $ClusterNodes) {
-            Get-HotFix -ComputerName $Node.Name | Where-Object { $_.InstalledOn -Match $StartDate }
+            $Hotfixes = foreach ($Node in $ClusterNodes) {
+            Get-HotFix -ComputerName $Node.Name | Where-Object InstalledOn -Match $StartDate
             }
         } catch {
             Write-Host "Couldn't collect the hotfixes from cluster nodes!" -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
         }
         
-        #Collects eventlogs for cluster nodes.
+        # Collects eventlogs for cluster nodes.
         try {
             $EventLogs = $False
             $EventLogs = foreach ($Node in $ClusterNodes) {
-            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object { $_.TimeCreated -Match $StartDate } | Select-Object TimeCreated,Message | Sort-Object TimeCreated
+            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
             }
         } catch {
             Write-Host "Couldn't collect the event logs from cluster nodes!" -ForegroundColor Red
@@ -114,13 +115,15 @@ function Get-HyperVCAULogs {
         }        
     }
     end {    
-    
+        
+        Clear-Host
+
         # Prints CAU logs
         Write-Host `n
         Write-Host "CAU logs from $StartDate for $Cluster." -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor  Green
         if ($Eventlogs) {
-            $Eventlogs | Format-Table -AutoSize
+            $Eventlogs | Sort-Object TimeCreated | Format-Table -AutoSize
         } else {
             Write-Host "No Logs Found"
         } 
@@ -186,9 +189,9 @@ function Get-HyperVClusterLogs {
             foreach ($Node in $ClusterNodes) {
                 $EventLogs = $False
                 Write-Host $Node.Name -ForegroundColor Green
-                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message
                 if ($EventLogs) {
-                    $EventLogs
+                    $EventLogs | Sort-Object TimeCreated | Format-List
                 } else {
                     Write-Host "No Logs Found"
                     Write-Host `n
@@ -197,9 +200,9 @@ function Get-HyperVClusterLogs {
         } elseif ($ClusterCheck -eq $False) {
             $EventLogs = $False
             Write-Host $env:COMPUTERNAME -ForegroundColor Green
-            $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List
+            $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message 
             if ($EventLogs) {
-                $EventLogs
+                $EventLogs | Sort-Object TimeCreated | Format-List
             } else {
                  Write-Host "No Logs Found"
             }
@@ -262,29 +265,10 @@ Function Get-HyperVMaintenanceQC {
         $NonClusteredVMs = foreach ($Node in $ClusterNodes) {
             Get-VM -ComputerName $Node.Name | Where-Object IsClustered -eq $False 
         }
-    
-        # Create the object to print in unclustered VM report
-        $VMs = foreach ($VM in $NonClusteredVMs) {
-            if ($VM.State -eq "Running") { 
+        
+        # Sort Nonclustered VMs by their state for readability.
+        $NonClusteredVMsSorted = $NonClusteredVMs | Sort-Object State
 
-                [PSCustomObject]@{
-                    VMName = $VM.Name
-                    VMState = $VM.State
-                    VMHost = $VM.Computername
-                }
-            } 
-            if ($VM.State -eq "Off") {
-
-                [PSCustomObject]@{
-                    VMName = $VM.Name
-                    VMState = $VM.State
-                    VMHost = $VM.Computername
-                }
-            }
-        }
-    
-        # Sort the nonclustered VMs for the final report
-        $NonClusteredVMsSorted = $VMs | Sort-Object VMState
     }
     end {
         
@@ -335,7 +319,7 @@ Function Get-HyperVMaintenanceQC {
         
         # Prints nonclustered VMs.
         foreach ($VM in $NonClusteredVMsSorted) {
-            Write-Host  $VM.VMHost - $VM.VMState - $VM.VMName -ForegroundColor Yellow
+            Write-Host  $VM.ComputerName - $VM.State - $VM.Name -ForegroundColor Yellow
         }
     }
 }
@@ -354,8 +338,7 @@ function Get-HyperVStorageReport {
         Write-Host "[1]  Full report" -ForegroundColor White
         Write-Host "[2]  Storage Utilization" -ForegroundColor White
         Write-Host "[3]  Cluster Storage IO - 2016 Only" -ForegroundColor White
-        Write-Host -------------------------------------------------------- -ForegroundColor Green
-    
+        Write-Host -------------------------------------------------------- -ForegroundColor Green    
         $MenuChoice = Read-Host "Menu Choice"
     }
     process {   
@@ -403,17 +386,16 @@ function Get-HyperVStorageReport {
     }
     end {
         
-        # Prints data report.
-        if ($MenuChoice -eq 1) {
-            $CSVInfo | Sort-Object "#" | Format-Table -AutoSize
-        } elseif ($MenuChoice -eq 2) {
-            $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize       
-        } elseif ($MenuChoice -eq 3) {
-            $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize 
-        } else {
-            Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
-            Get-HyperVStorageReport
+        # Prints report based on MenuChoice.
+        switch ($MenuChoice) {
+            1 { $CSVInfo | Sort-Object "#" | Format-Table -AutoSize }
+            2 { $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
+            3 { $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
+            default { 
+                Write-Host "Incorrect Choice. Choose a number from the menu."
+                Start-Sleep -s 3
+                Get-HyperVStorageReport
+            }
         }
     }
 }
@@ -432,13 +414,12 @@ function Get-HyperVVMInfo {
         Write-Host "[1]  Full report" -ForegroundColor White
         Write-Host "[2]  VM Resource Allocation" -ForegroundColor White
         Write-Host "[3]  VM Networking" -ForegroundColor White
-        Write-Host -------------------------------------------------------- -ForegroundColor Green
-    
+        Write-Host -------------------------------------------------------- -ForegroundColor Green    
         $MenuChoice = Read-Host "Menu Choice"
     }    
     process {
         
-        # Pull Cluster node data for script
+        # Pull Cluster node data for script.
         try {
             $ClusterNodes = Get-ClusterNode -ErrorAction Stop
         } catch {
@@ -452,8 +433,7 @@ function Get-HyperVVMInfo {
         # Collects VMs into variable for foreach loop
         $VMs = foreach ($Node in $ClusterNodes) {
             Get-VM -ComputerName $Node.Name    
-        }
-    
+        }   
         try{
         
             # Collects information from VMs and creates $VMInfo variable with all VM info.
@@ -466,9 +446,9 @@ function Get-HyperVVMInfo {
                         vCPU = $VM.ProcessorCount
                         RAM = [math]::Round($VM.MemoryStartup /1GB)
                         IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
+                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
                         MAC = $VMNetworkAdapter.MacAddress
                         vSwitch = $VMNetworkAdapter.SwitchName
-                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
                     }   
             }                    
         } catch {
@@ -478,17 +458,16 @@ function Get-HyperVVMInfo {
     }
     end {
         
-        # Prints data report.
-        if ($MenuChoice -eq 1) {
-            $VMInfo | Sort-Object Host | Format-Table -AutoSize
-        } elseif ($MenuChoice -eq 2) {
-            $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize       
-        } elseif ($MenuChoice -eq 3) {
-            $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize 
-        } else {
-            Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
-            Get-HyperVStorageReport
+        # Prints report based on MenuChoice.
+        switch ($MenuChoice) {
+            1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
+            2 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
+            3 { $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize }
+            default { 
+                Write-Host "Incorrect Choice. Choose a number from the menu."
+                Start-Sleep -s 3
+                Get-HyperVStorageReport
+            }
         }
     }    
 }
