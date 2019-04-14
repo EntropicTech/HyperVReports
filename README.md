@@ -56,7 +56,7 @@ Message      : 'ET-RDP-01' successfully booted an operating system. (Virtual mac
 Verifies that the cluster can sustain a single node failure and that all VMs are clustered.
 ```
 ===========================================
-         EntropicClus has 2 nodes.
+         EntropicClus has 4 nodes.
 ===========================================
   1024 GB - Physical memory of cluster.
   256 GB - Physical memory of each node.
