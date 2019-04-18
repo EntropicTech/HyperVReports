@@ -2,33 +2,17 @@ function Get-HyperVReports {
     [CmdletBinding()]
     param(
     )
-    process {
-        # Requires -RunAsAdministrator
+    begin {
+        
+        #Requires -RunAsAdministrator
+        #Requires -Version 3.0
+        #Requires -Module Hyper-V
+        #Requires -Module FailoverClusters
         
         # Sets Console to black background
-        $host.UI.RawUI.BackgroundColor = "Black"
-        
-        # Checks to see if the cluster service is running.
-        $ClusterCheckTest = $False
-        $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
-        if ($ClusterCheckTest) {
-            $Script:ClusterCheck = $True
-            Get-HyperVReportsMenu
-        } else {
-            $Script:ClusterCheck = $False
-            Get-HyperVReportsMenu
-        }
+        $Host.UI.RawUI.BackgroundColor = "Black"
 
-        # Pull operating system version
-        $Script:OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
-    }
-}
-
-function Get-HyperVReportsMenu {
-    [CmdletBinding()]
-    param(
-    )
-    begin {
+        # Prints the Menu. Accepts input.
         Clear-Host
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         Write-Host "                   Hyper-V Reports"                     -ForegroundColor White
@@ -65,8 +49,9 @@ function Get-HyperVCAULogs {
     param(
     )
     begin {
-        try {
-            # Variables
+        
+        # Collect Variables
+        try {                        
             $Cluster = (Get-Cluster).Name
             $CAUDates = ( (Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
             $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
@@ -144,6 +129,7 @@ function Get-HyperVClusterLogs {
     param(
     )
     begin {
+    
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
@@ -158,8 +144,9 @@ function Get-HyperVClusterLogs {
         
         # Collects text to filter the event log with.
         $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
-        
-        #Builds a 24hour $StartDate and #EndDate unless date is provided.
+        Write-Host `n
+
+        # Builds a 24hour $StartDate and #EndDate unless date is provided.
         if ($MenuChoice -eq 1) {
             $StartDate = (Get-Date).AddDays(-1)   
             $EndDate = (Get-Date).AddDays(1)   
@@ -169,7 +156,6 @@ function Get-HyperVClusterLogs {
             $StartDate = Read-Host "Enter oldest search date."
             $EndDate = Read-Host "Enter latest search date."
         }
-        Write-Host `n
     
         # Filter for log collection.           
         $Filter = @{
@@ -184,8 +170,12 @@ function Get-HyperVClusterLogs {
             Write-Host $_.Exception.Message -ForegroundColor Red            
         }
         
-        #Builds $EventLogs variable used in report.
-        if ($ClusterCheck -ne $False) {
+        # Checks for cluster.
+        $ClusterCheck = $False
+        $ClusterCheck = Get-Cluster
+        
+        # Builds $EventLogs variable used in report.
+        if ($ClusterCheck) {
             foreach ($Node in $ClusterNodes) {
                 $EventLogs = $False
                 Write-Host $Node.Name -ForegroundColor Green
@@ -215,6 +205,7 @@ Function Get-HyperVMaintenanceQC {
     param(
     )
     begin {
+        
         # Gather Cluster Variables
         $Cluster = Get-Cluster
         $ClusterNodes = Get-ClusterNode
@@ -233,6 +224,7 @@ Function Get-HyperVMaintenanceQC {
         Clear-Host
     }
     process {
+        
         Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
         # Building variable that has memory info for all of the cluster nodes.
