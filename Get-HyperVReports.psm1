@@ -2,33 +2,16 @@ function Get-HyperVReports {
     [CmdletBinding()]
     param(
     )
-    process {
-        # Requires -RunAsAdministrator
-        
-        # Sets Console to black background
-        $host.UI.RawUI.BackgroundColor = "Black"
-        
-        # Checks to see if the cluster service is running.
-        $ClusterCheckTest = $False
-        $ClusterCheckTest = Get-Cluster -ErrorAction SilentlyContinue
-        if ($ClusterCheckTest) {
-            $Script:ClusterCheck = $True
-            Get-HyperVReportsMenu
-        } else {
-            $Script:ClusterCheck = $False
-            Get-HyperVReportsMenu
-        }
-
-        # Pull operating system version
-        $Script:OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
-    }
-}
-
-function Get-HyperVReportsMenu {
-    [CmdletBinding()]
-    param(
-    )
+    #Requires -RunAsAdministrator
+    #Requires -Version 3.0
+    #Requires -Module Hyper-V
+    #Requires -Module FailoverClusters
     begin {
+               
+        # Sets Console to black background
+        $Host.UI.RawUI.BackgroundColor = "Black"
+
+        # Prints the Menu. Accepts input.
         Clear-Host
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         Write-Host "                   Hyper-V Reports"                     -ForegroundColor White
@@ -43,7 +26,7 @@ function Get-HyperVReportsMenu {
     }
     process {
         
-        # Prints report based on MenuChoice.
+        # Prints report based on $MenuChoice.
         switch ($MenuChoice) {
             1 { Get-HyperVClusterLogs }
             2 { Get-HyperVMaintenanceQC }
@@ -64,9 +47,14 @@ function Get-HyperVCAULogs {
     [CmdletBinding()]
     param(
     )
+    #Requires -RunAsAdministrator
+    #Requires -Version 3.0
+    #Requires -Module Hyper-V
+    #Requires -Module FailoverClusters
     begin {
-        try {
-            # Variables
+        
+        # Collect Variables
+        try {                        
             $Cluster = (Get-Cluster).Name
             $CAUDates = ( (Get-WinEvent -LogName *ClusterAwareUpdating*).TimeCreated | Get-Date -Format MM/dd/yyy) | Get-Unique
             $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
@@ -143,7 +131,17 @@ function Get-HyperVClusterLogs {
     [CmdletBinding()]
     param(
     )
+    #Requires -RunAsAdministrator
+    #Requires -Version 3.0
+    #Requires -Module Hyper-V
+    #Requires -Module FailoverClusters
     begin {
+    
+    # Setting up Variables.
+    $ClusterCheck = $False
+    $ClusterCheck = Get-Cluster
+    $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
+
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
@@ -153,13 +151,14 @@ function Get-HyperVClusterLogs {
     Write-Host "[2]  Specify date range" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     $MenuChoice = Read-Host "Please select menu number"
+    
+    # Collects text to filter the event log with.
+    $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
+    Write-Host `n
     }
     process {
         
-        # Collects text to filter the event log with.
-        $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
-        
-        #Builds a 24hour $StartDate and #EndDate unless date is provided.
+        # Builds a 24hour $StartDate and #EndDate unless date is provided.
         if ($MenuChoice -eq 1) {
             $StartDate = (Get-Date).AddDays(-1)   
             $EndDate = (Get-Date).AddDays(1)   
@@ -169,7 +168,6 @@ function Get-HyperVClusterLogs {
             $StartDate = Read-Host "Enter oldest search date."
             $EndDate = Read-Host "Enter latest search date."
         }
-        Write-Host `n
     
         # Filter for log collection.           
         $Filter = @{
@@ -177,15 +175,9 @@ function Get-HyperVClusterLogs {
             StartTime = $StartDate
             EndTime = $EndDate
         }
-        try {
-            $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
-        } catch {
-            Write-Host "Couldn't collect information from cluster nodes!" -ForegroundColor Red
-            Write-Host $_.Exception.Message -ForegroundColor Red            
-        }
-        
-        #Builds $EventLogs variable used in report.
-        if ($ClusterCheck -ne $False) {
+                
+        # Builds $EventLogs variable used in report.
+        if ($ClusterCheck) {
             foreach ($Node in $ClusterNodes) {
                 $EventLogs = $False
                 Write-Host $Node.Name -ForegroundColor Green
@@ -214,7 +206,12 @@ Function Get-HyperVMaintenanceQC {
     [CmdletBinding()]
     param(
     )
+    #Requires -RunAsAdministrator
+    #Requires -Version 3.0
+    #Requires -Module Hyper-V
+    #Requires -Module FailoverClusters
     begin {
+        
         # Gather Cluster Variables
         $Cluster = Get-Cluster
         $ClusterNodes = Get-ClusterNode
@@ -233,6 +230,7 @@ Function Get-HyperVMaintenanceQC {
         Clear-Host
     }
     process {
+        
         Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
         # Building variable that has memory info for all of the cluster nodes.
@@ -328,6 +326,10 @@ function Get-HyperVStorageReport {
     [CmdletBinding()]
     param(
     )
+    #Requires -RunAsAdministrator
+    #Requires -Version 3.0
+    #Requires -Module Hyper-V
+    #Requires -Module FailoverClusters
     begin {
         
         # Prints the Menu. Accepts input.
@@ -342,9 +344,11 @@ function Get-HyperVStorageReport {
         $MenuChoice = Read-Host "Menu Choice"
     }
     process {   
+        
+        # Builds $CSVINfo to gather disk info for final report.
         try {
             
-            # Collects data to build variable from.
+            # Variable Setup
             $OSVersion = [environment]::OSVersion.Version.Major
             $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
             
@@ -386,7 +390,7 @@ function Get-HyperVStorageReport {
     }
     end {
         
-        # Prints report based on MenuChoice.
+        # Prints report based on $MenuChoice.
         switch ($MenuChoice) {
             1 { $CSVInfo | Sort-Object "#" | Format-Table -AutoSize }
             2 { $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
@@ -404,7 +408,11 @@ function Get-HyperVVMInfo {
     [CmdletBinding()]
     param(
     )
-    begin {
+    #Requires -RunAsAdministrator
+    #Requires -Version 3.0
+    #Requires -Module Hyper-V
+    #Requires -Module FailoverClusters       
+    begin { 
         
         # Prints the Menu. Accepts input.
         Clear-Host
@@ -416,16 +424,9 @@ function Get-HyperVVMInfo {
         Write-Host "[3]  VM Networking" -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor Green    
         $MenuChoice = Read-Host "Menu Choice"
-    }    
-    process {
-        
+
         # Pull Cluster node data for script.
-        try {
-            $ClusterNodes = Get-ClusterNode -ErrorAction Stop
-        } catch {
-            Write-Host "Couldn't collect information from cluster nodes!" -ForegroundColor Red
-            Write-Host $_.Exception.Message -ForegroundColor Red            
-        }
+        $ClusterNodes = Get-ClusterNode -ErrorAction Stop
         
         # Filter for IPv4 addresses
         $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
@@ -433,10 +434,12 @@ function Get-HyperVVMInfo {
         # Collects VMs into variable for foreach loop
         $VMs = foreach ($Node in $ClusterNodes) {
             Get-VM -ComputerName $Node.Name    
-        }   
-        try{
+        }
+    }    
+    process {
         
-            # Collects information from VMs and creates $VMInfo variable with all VM info.
+        # Collects information from VMs and creates $VMInfo variable with all VM info.  
+        try{           
             $VMInfo = foreach ($VM in $VMs) {
                 $VMNetworkAdapter = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
                 $VMNetworkAdapterVlan = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName | Get-VMNetworkAdapterVlan
@@ -458,7 +461,7 @@ function Get-HyperVVMInfo {
     }
     end {
         
-        # Prints report based on MenuChoice.
+        # Prints report based on $MenuChoice.
         switch ($MenuChoice) {
             1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
             2 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
