@@ -1,11 +1,16 @@
 function Get-HyperVReports {
+    <#
+        .SYNOPSIS
+            Get-HyperVReports prints the menu for selecting which report you would like to print.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
                
         # Sets Console to black background
@@ -44,13 +49,18 @@ function Get-HyperVReports {
 }
 
 function Get-HyperVCAULogs {
+    <#
+        .SYNOPSIS
+            Get-HyperVCAULogs collects CAU event log data and hotfixes and prints a report.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+    
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
         
         # Collect Variables
@@ -128,13 +138,18 @@ function Get-HyperVCAULogs {
 }
 
 function Get-HyperVClusterLogs {
+    <#
+        .SYNOPSIS
+            Get-HyperVClusterLogs searches the Hyper-V eventlogs of a Hyper-V cluster and prints a report.
+    #>     
     [CmdletBinding()]
-    param(
-    )
+    param()   
+
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
     
     # Setting up Variables.
@@ -203,13 +218,18 @@ function Get-HyperVClusterLogs {
 }
 
 Function Get-HyperVMaintenanceQC {
+    <#
+        .SYNOPSIS
+            Get-HyperVMaintenanceQC tests Hyper-V cluster to ensure single node failure and no unclustered VMS.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
         
         # Gather Cluster Variables
@@ -323,13 +343,18 @@ Function Get-HyperVMaintenanceQC {
 }
 
 function Get-HyperVStorageReport {
+    <#
+        .SYNOPSIS
+            Get-HyperVStorageReport collects Cluster Shared Volumes and prints a report of their data.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+    
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
         
         # Prints the Menu. Accepts input.
@@ -405,13 +430,18 @@ function Get-HyperVStorageReport {
 }
 
 function Get-HyperVVMInfo {
+    <#
+        .SYNOPSIS
+            Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.
+    #>    
     [CmdletBinding()]
-    param(
-    )
+    param()
+    
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters       
+    
     begin { 
         
         # Prints the Menu. Accepts input.
