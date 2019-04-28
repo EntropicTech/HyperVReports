@@ -236,7 +236,7 @@ Function Get-HyperVMaintenanceQC {
         $Cluster = Get-Cluster
         $ClusterNodes = Get-ClusterNode
 
-        # Variable cleanup
+        # Variable Setup
         $TotalVMHostMemory = $False
         $TotalUsableVMHostMemory = $False
         $VirtMemory = $False
@@ -246,7 +246,6 @@ Function Get-HyperVMaintenanceQC {
             Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
             break
         }
-    
         Clear-Host
     }
     process {
