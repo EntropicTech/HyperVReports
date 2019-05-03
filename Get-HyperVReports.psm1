@@ -1,11 +1,16 @@
 function Get-HyperVReports {
+    <#
+        .SYNOPSIS
+            Get-HyperVReports prints the menu for selecting which report you would like to print.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
                
         # Sets Console to black background
@@ -44,13 +49,18 @@ function Get-HyperVReports {
 }
 
 function Get-HyperVCAULogs {
+    <#
+        .SYNOPSIS
+            Get-HyperVCAULogs collects CAU event log data and hotfixes and prints a report.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+    
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
         
         # Collect Variables
@@ -84,7 +94,7 @@ function Get-HyperVCAULogs {
         try {
             $Hotfixes = $False
             $Hotfixes = foreach ($Node in $ClusterNodes) {
-            Get-HotFix -ComputerName $Node.Name | Where-Object InstalledOn -Match $StartDate
+                Get-HotFix -ComputerName $Node.Name | Where-Object InstalledOn -Match $StartDate
             }
         } catch {
             Write-Host "Couldn't collect the hotfixes from cluster nodes!" -ForegroundColor Red
@@ -95,7 +105,7 @@ function Get-HyperVCAULogs {
         try {
             $EventLogs = $False
             $EventLogs = foreach ($Node in $ClusterNodes) {
-            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
+                Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
             }
         } catch {
             Write-Host "Couldn't collect the event logs from cluster nodes!" -ForegroundColor Red
@@ -128,13 +138,18 @@ function Get-HyperVCAULogs {
 }
 
 function Get-HyperVClusterLogs {
+    <#
+        .SYNOPSIS
+            Get-HyperVClusterLogs searches the Hyper-V eventlogs of a Hyper-V cluster and prints a report.
+    #>     
     [CmdletBinding()]
-    param(
-    )
+    param()   
+
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
     
     # Setting up Variables.
@@ -196,27 +211,32 @@ function Get-HyperVClusterLogs {
             if ($EventLogs) {
                 $EventLogs | Sort-Object TimeCreated | Format-List
             } else {
-                 Write-Host "No Logs Found"
+                Write-Host "No Logs Found"
             }
         }
     }
 }
 
 Function Get-HyperVMaintenanceQC {
+    <#
+        .SYNOPSIS
+            Get-HyperVMaintenanceQC tests Hyper-V cluster to ensure single node failure and no unclustered VMS.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
         
         # Gather Cluster Variables
         $Cluster = Get-Cluster
         $ClusterNodes = Get-ClusterNode
 
-        # Variable cleanup
+        # Variable Setup
         $TotalVMHostMemory = $False
         $TotalUsableVMHostMemory = $False
         $VirtMemory = $False
@@ -226,11 +246,10 @@ Function Get-HyperVMaintenanceQC {
             Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
             break
         }
-    
-        Clear-Host
     }
     process {
         
+        Clear-Host
         Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
         # Building variable that has memory info for all of the cluster nodes.
@@ -323,13 +342,18 @@ Function Get-HyperVMaintenanceQC {
 }
 
 function Get-HyperVStorageReport {
+    <#
+        .SYNOPSIS
+            Get-HyperVStorageReport collects Cluster Shared Volumes and prints a report of their data.
+    #>
     [CmdletBinding()]
-    param(
-    )
+    param()
+    
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters
+    
     begin {
         
         # Prints the Menu. Accepts input.
@@ -405,13 +429,18 @@ function Get-HyperVStorageReport {
 }
 
 function Get-HyperVVMInfo {
+    <#
+        .SYNOPSIS
+            Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.
+    #>    
     [CmdletBinding()]
-    param(
-    )
+    param()
+    
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
     #Requires -Module Hyper-V
     #Requires -Module FailoverClusters       
+    
     begin { 
         
         # Prints the Menu. Accepts input.
