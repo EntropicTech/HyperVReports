@@ -94,7 +94,7 @@ function Get-HyperVCAULogs {
         try {
             $Hotfixes = $False
             $Hotfixes = foreach ($Node in $ClusterNodes) {
-            Get-HotFix -ComputerName $Node.Name | Where-Object InstalledOn -Match $StartDate
+                Get-HotFix -ComputerName $Node.Name | Where-Object InstalledOn -Match $StartDate
             }
         } catch {
             Write-Host "Couldn't collect the hotfixes from cluster nodes!" -ForegroundColor Red
@@ -105,7 +105,7 @@ function Get-HyperVCAULogs {
         try {
             $EventLogs = $False
             $EventLogs = foreach ($Node in $ClusterNodes) {
-            Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
+                Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
             }
         } catch {
             Write-Host "Couldn't collect the event logs from cluster nodes!" -ForegroundColor Red
