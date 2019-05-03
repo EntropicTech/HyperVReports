@@ -211,7 +211,7 @@ function Get-HyperVClusterLogs {
             if ($EventLogs) {
                 $EventLogs | Sort-Object TimeCreated | Format-List
             } else {
-                 Write-Host "No Logs Found"
+                Write-Host "No Logs Found"
             }
         }
     }
@@ -246,10 +246,10 @@ Function Get-HyperVMaintenanceQC {
             Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
             break
         }
-        Clear-Host
     }
     process {
         
+        Clear-Host
         Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
         # Building variable that has memory info for all of the cluster nodes.
