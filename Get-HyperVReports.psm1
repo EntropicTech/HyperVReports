@@ -8,8 +8,7 @@ function Get-HyperVReports {
 
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
-    #Requires -Module Hyper-V
-    #Requires -Module FailoverClusters
+    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
                
@@ -58,8 +57,7 @@ function Get-HyperVCAULogs {
     
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
-    #Requires -Module Hyper-V
-    #Requires -Module FailoverClusters
+    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
         
@@ -147,8 +145,7 @@ function Get-HyperVClusterLogs {
 
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
-    #Requires -Module Hyper-V
-    #Requires -Module FailoverClusters
+    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
     
@@ -227,8 +224,7 @@ Function Get-HyperVMaintenanceQC {
 
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
-    #Requires -Module Hyper-V
-    #Requires -Module FailoverClusters
+    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
         
@@ -351,8 +347,7 @@ function Get-HyperVStorageReport {
     
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
-    #Requires -Module Hyper-V
-    #Requires -Module FailoverClusters
+    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
         
@@ -438,8 +433,7 @@ function Get-HyperVVMInfo {
     
     #Requires -RunAsAdministrator
     #Requires -Version 3.0
-    #Requires -Module Hyper-V
-    #Requires -Module FailoverClusters       
+    #Requires -Modules Hyper-V, FailoverClusters       
     
     begin { 
         
@@ -472,16 +466,18 @@ function Get-HyperVVMInfo {
             $VMInfo = foreach ($VM in $VMs) {
                 $VMNetworkAdapter = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
                 $VMNetworkAdapterVlan = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName | Get-VMNetworkAdapterVlan
-                    [PSCustomObject]@{
-                        Host = $VM.ComputerName
-                        VMName = $VM.VMName
-                        vCPU = $VM.ProcessorCount
-                        RAM = [math]::Round($VM.MemoryStartup /1GB)
-                        IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
-                        VLAN = $VMNetworkAdapterVlan.AccessVlanId
-                        MAC = $VMNetworkAdapter.MacAddress
-                        vSwitch = $VMNetworkAdapter.SwitchName
-                    }   
+                
+                # Building PSObject to populate $VMInfo
+                [PSCustomObject]@{
+                    Host = $VM.ComputerName
+                    VMName = $VM.VMName
+                    vCPU = $VM.ProcessorCount
+                    RAM = [math]::Round($VM.MemoryStartup /1GB)
+                    IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
+                    VLAN = $VMNetworkAdapterVlan.AccessVlanId
+                    MAC = $VMNetworkAdapter.MacAddress
+                    vSwitch = $VMNetworkAdapter.SwitchName
+                }   
             }                    
         } catch {
             Write-Host "Couldn't collect information from the VMs!" -ForegroundColor Red
