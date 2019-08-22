@@ -356,6 +356,7 @@ function Get-HyperVStorageReport {
                 $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
                 $ClusterPath = $CSV.AccessPaths.Split("/")[0]
                 $FriendlyPath = ($ClusterPath).Split("\")[2]
+                $CSVState =  Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath
                 $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like *$FriendlyPath* | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
                 $VolumeBlock = Get-Volume | Where-Object ObjectID -like *$AccessPathVolumeID*
                 if ($OSVersion -eq 10) {
@@ -363,6 +364,7 @@ function Get-HyperVStorageReport {
                     [PSCustomObject]@{
                         "#" = $CSV.DiskNumber
                         Block = $VolumeBlock.AllocationUnitSize
+                        CSVName = $CSVState.Name
                         ClusterPath = $ClusterSharedVolume.FriendlyVolumeName
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
@@ -375,6 +377,7 @@ function Get-HyperVStorageReport {
                     [PSCustomObject]@{
                         "#" = $CSV.DiskNumber
                         Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
+                        CSVName = $CSVState.Name
                         ClusterPath = $ClusterSharedVolume.FriendlyVolumeName
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
@@ -392,8 +395,8 @@ function Get-HyperVStorageReport {
         # Prints report based on $MenuChoice.
         switch ($MenuChoice) {
             1 { $CSVInfo | Sort-Object "#" | Format-Table -AutoSize }
-            2 { $CSVInfo | Select-Object "#",ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
-            3 { $CSVInfo | Select-Object "#",ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
+            2 { $CSVInfo | Select-Object "#",CSVName,ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
+            3 { $CSVInfo | Select-Object "#",CSVName,ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
             default { 
                 Write-Host "Incorrect Choice. Choose a number from the menu."
                 Start-Sleep -s 3
