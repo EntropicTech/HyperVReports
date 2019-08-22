@@ -6,10 +6,6 @@ function Get-HyperVReports {
     [CmdletBinding()]
     param()
 
-    #Requires -RunAsAdministrator
-    #Requires -Version 3.0
-    #Requires -Modules Hyper-V, FailoverClusters
-    
     begin {
                
         # Sets Console to black background
@@ -54,10 +50,6 @@ function Get-HyperVCAULogs {
     #>
     [CmdletBinding()]
     param()
-    
-    #Requires -RunAsAdministrator
-    #Requires -Version 3.0
-    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
         
@@ -143,10 +135,6 @@ function Get-HyperVClusterLogs {
     [CmdletBinding()]
     param()   
 
-    #Requires -RunAsAdministrator
-    #Requires -Version 3.0
-    #Requires -Modules Hyper-V, FailoverClusters
-    
     begin {
     
     # Setting up Variables.
@@ -221,10 +209,6 @@ Function Get-HyperVMaintenanceQC {
     #>
     [CmdletBinding()]
     param()
-
-    #Requires -RunAsAdministrator
-    #Requires -Version 3.0
-    #Requires -Modules Hyper-V, FailoverClusters
     
     begin {
         
@@ -345,10 +329,6 @@ function Get-HyperVStorageReport {
     [CmdletBinding()]
     param()
     
-    #Requires -RunAsAdministrator
-    #Requires -Version 3.0
-    #Requires -Modules Hyper-V, FailoverClusters
-    
     begin {
         
         # Prints the Menu. Accepts input.
@@ -429,11 +409,7 @@ function Get-HyperVVMInfo {
             Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.
     #>    
     [CmdletBinding()]
-    param()
-    
-    #Requires -RunAsAdministrator
-    #Requires -Version 3.0
-    #Requires -Modules Hyper-V, FailoverClusters       
+    param()    
     
     begin { 
         
