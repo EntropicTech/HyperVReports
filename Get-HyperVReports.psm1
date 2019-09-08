@@ -349,21 +349,22 @@ function Get-HyperVStorageReport {
             
             # Variable Setup
             $OSVersion = [environment]::OSVersion.Version.Major
-            $CSVs = Get-ClusterSharedVolume
+            $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
 
             $results = foreach ($CSV in $CSVs) {    
                 
-                $FriendlyPath = ($CSV).Name 
-                $ClusterPath = $CSV.SharedVolumeInfo.FriendlyVolumeName
-                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition                                 
-                $CSVPartition = Get-Partition | Where-Object AccessPaths -like $ClusterSharedVolume.Name | Select-Object AccessPaths,DiskNumber
-                $VolumeBlock = Get-Volume | Where-Object Path -like $ClusterSharedVolume.Name
-                $CSVState =  Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath                
+                # Collecting CSV information
+                $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
+                $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
+                $FriendlyPath = $ClusterPath.Split("\")[2]
+                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+                $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
+                $CSVState =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath)[0]
                 
                 if ($OSVersion -eq 10) {
                     $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
                     [PSCustomObject]@{
-                        "#" = $CSVPartition.DiskNumber
+                        "#" = $CSV.DiskNumber
                         Block = $VolumeBlock.AllocationUnitSize
                         CSVName = $CSVState.Name
                         ClusterPath = $ClusterPath
@@ -376,8 +377,8 @@ function Get-HyperVStorageReport {
                     }
                 } else {
                     [PSCustomObject]@{
-                        "#" = $CSVPartition.DiskNumber
-                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize
+                        "#" = $CSV.DiskNumber
+                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
                         CSVName = $CSVState.Name
                         ClusterPath = $ClusterPath
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
