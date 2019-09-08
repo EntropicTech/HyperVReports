@@ -421,9 +421,9 @@ function Get-HyperVVMInfo {
         Write-Host -------------------------------------------------------- -ForegroundColor Green
         Write-Host "                  Hyper-V VM Reports"                   -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor Green
-        Write-Host "[1]  Full report" -ForegroundColor White
-        Write-Host "[2]  VM Resource Allocation" -ForegroundColor White
-        Write-Host "[3]  VM Networking" -ForegroundColor White
+        Write-Host "[1]  VM vCPU and RAM" -ForegroundColor White	
+        Write-Host "[2]  VM Networking" -ForegroundColor White
+        Write-Host "[3]  VM VHDX Size/Location/Type" -ForegroundColor White
         Write-Host -------------------------------------------------------- -ForegroundColor Green    
         $MenuChoice = Read-Host "Menu Choice"
 
@@ -440,23 +440,41 @@ function Get-HyperVVMInfo {
     }    
     process {
         
+        Write-Host `n
+        Write-Host "Gathering data from VMs... Please be patient." -ForegroundColor White
+
         # Collects information from VMs and creates $VMInfo variable with all VM info.  
         try{           
             $VMInfo = foreach ($VM in $VMs) {
-                $VMNetworkAdapter = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
-                $VMNetworkAdapterVlan = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName | Get-VMNetworkAdapterVlan
-                
-                # Building PSObject to populate $VMInfo
-                [PSCustomObject]@{
-                    Host = $VM.ComputerName
-                    VMName = $VM.VMName
-                    vCPU = $VM.ProcessorCount
-                    RAM = [math]::Round($VM.MemoryStartup /1GB)
-                    IPAddress = $VMNetworkAdapter.Ipaddresses | Select-String -Pattern $IPv4
-                    VLAN = $VMNetworkAdapterVlan.AccessVlanId
-                    MAC = $VMNetworkAdapter.MacAddress
-                    vSwitch = $VMNetworkAdapter.SwitchName
-                }   
+                if ( ($MenuChoice -eq 1) -or ($MenuChoice -eq 2) ) {
+                    $VMNetworkAdapters = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
+                    foreach ($Adapter in $VMNetworkAdapters) {
+                        $VMNetworkAdapterVlans = Get-VMNetworkAdapterVlan -VMNetworkAdapter $Adapter
+                        foreach ($AdapterVlan in $VMNetworkAdapterVlans) {
+                            [PSCustomObject]@{
+                                Host = $VM.ComputerName
+                                VMName = $VM.VMName
+                                vCPU = $VM.ProcessorCount
+                                RAM = [math]::Round($VM.MemoryStartup /1GB)
+                                IPAddress = $Adapter.Ipaddresses | Select-String -Pattern $IPv4
+                                VLAN = $AdapterVlan.AccessVlanId
+                                MAC = $Adapter.MacAddress
+                                vSwitch = $Adapter.SwitchName
+                            }
+                        }
+                    }                                                 
+                } elseif ($MenuChoice = 3) {
+                    $Disks = Get-VMHardDiskDrive -ComputerName $VM.Computername -VMName $VM.VMName | Get-VHD -ComputerName $VM.Computername
+                    foreach ($Disk in $Disks) {
+                        [PSCustomObject]@{
+                            VMName = $VM.VMName
+                            Disk = $Disk.Path
+                            Size = [math]::Round($Disk.FileSize /1GB)
+                            PotentialSize = [math]::Round($Disk.Size /1GB)
+                            "VHDX Type" = $Disk.VhdType
+                        }
+                    }
+                }  
             }                    
         } catch {
             Write-Host "Couldn't collect information from the VMs!" -ForegroundColor Red
@@ -467,9 +485,9 @@ function Get-HyperVVMInfo {
         
         # Prints report based on $MenuChoice.
         switch ($MenuChoice) {
-            1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
-            2 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
-            3 { $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize }
+            1 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
+            2 { $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize }
+            3 { $VMInfo | Select-Object VMName,Disk,Size,PotentialSize,"VHDX Type" | Sort-Object VMName | Format-Table -AutoSize }
             default { 
                 Write-Host "Incorrect Choice. Choose a number from the menu."
                 Start-Sleep -s 3
