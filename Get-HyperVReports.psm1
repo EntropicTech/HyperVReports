@@ -166,7 +166,8 @@ function Get-HyperVClusterLogs {
             $DateFormat = Get-Date -Format d 
             Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow 
             $StartDate = Read-Host "Enter oldest search date." 
-            $EndDate = Read-Host "Enter latest search date." 
+            $EndDate = Read-Host "Enter latest search date."
+            Write-Host `n 
         }  
 
         # Filter for log collection.            
@@ -286,7 +287,6 @@ Function Get-HyperVMaintenanceQC {
     }
     end {
         
-        # Clear screen and print report.
         Clear-Host
         
         if ($Nodecount -eq "1") {
