@@ -142,65 +142,82 @@ function Get-HyperVClusterLogs {
     $ClusterCheck = Get-Cluster
     $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
 
-    # Prints the Menu. Accepts input.
-    Clear-Host
-    Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "           Hyper-V Cluster Event Log Search"            -ForegroundColor White
-    Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "[1]  Search last 24 hours" -ForegroundColor White
-    Write-Host "[2]  Specify date range" -ForegroundColor White
-    Write-Host -------------------------------------------------------- -ForegroundColor Green
-    $MenuChoice = Read-Host "Please select menu number"
-    
-    # Collects text to filter the event log with.
-    $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"
+    # Prints the Menu. Accepts input. 
+    Clear-Host 
+    Write-Host -------------------------------------------------------- -ForegroundColor Green 
+    Write-Host "           Hyper-V Cluster Event Log Search"            -ForegroundColor White 
+    Write-Host -------------------------------------------------------- -ForegroundColor Green 
+    Write-Host "[1]  Search last 24 hours" -ForegroundColor White 
+    Write-Host "[2]  Specify date range" -ForegroundColor White 
+    Write-Host -------------------------------------------------------- -ForegroundColor Green 
+    $MenuChoice = Read-Host "Please select menu number"   
+
+    # Collects text to filter the event log with. 
+    $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"  
     Write-Host `n
-    }
-    process {
-        
-        # Builds a 24hour $StartDate and #EndDate unless date is provided.
-        if ($MenuChoice -eq 1) {
-            $StartDate = (Get-Date).AddDays(-1)   
-            $EndDate = (Get-Date).AddDays(1)   
-        } elseif ($MenuChoice -eq 2) {
-            $DateFormat = Get-Date -Format d
-            Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
-            $StartDate = Read-Host "Enter oldest search date."
-            $EndDate = Read-Host "Enter latest search date."
-        }
-    
-        # Filter for log collection.           
+    } 
+    process {         
+
+        # Builds a 24hour $StartDate and #EndDate unless date is provided. 
+        if ($MenuChoice -eq 1) { 
+            $StartDate = (Get-Date).AddDays(-1)    
+            $EndDate = (Get-Date).AddDays(1)    
+        } elseif ($MenuChoice -eq 2) { 
+            $DateFormat = Get-Date -Format d 
+            Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow 
+            $StartDate = Read-Host "Enter oldest search date." 
+            $EndDate = Read-Host "Enter latest search date." 
+        }  
+
+        # Filter for log collection.            
         $Filter = @{
-            LogName = "*Hyper-V*"
-            StartTime = $StartDate
-            EndTime = $EndDate
-        }
+            LogName = "*Hyper-V*" 
+            StartTime = $StartDate 
+            EndTime = $EndDate 
+        }               
+
+        # Builds $EventLogs variable used in report. 
+        if ($ClusterCheck) { 
+
+            # Clear any old jobs out related to this script. 
+            Get-Job | Where-Object Command -like *Get-WinEvent* | Remove-Job
                 
-        # Builds $EventLogs variable used in report.
-        if ($ClusterCheck) {
-            foreach ($Node in $ClusterNodes) {
-                $EventLogs = $False
-                Write-Host $Node.Name -ForegroundColor Green
-                $Eventlogs = Get-WinEvent -ComputerName $Node.Name -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message
+            # Setup ScriptBlock for Invoke-Command.
+            $EventLogs = {  
+                param($Filter,$Messagetxt) 
+                Get-WinEvent -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*"
+            } 
+             
+            # Use jobs to pull event logs from all cluster nodes at the same time.
+            Invoke-Command -ComputerName $ClusterNodes -ScriptBlock $EventLogs -ArgumentList $Filter,$Messagetxt -AsJob | Wait-Job | Out-Null
+
+            # Collect eventlogs from jobs and assign to $EventLogs
+            $EventLogs = Get-Job | Where-Object Command -like *Get-WinEvent* | Receive-Job                      
+            
+            # Get list of Hyper-V servers that logs were collected from.
+            $LoggedNodes = $EventLogs.PSComputerName | Get-Unique            
+            
+            foreach ($Node in $LoggedNodes) {
                 if ($EventLogs) {
-                    $EventLogs | Sort-Object TimeCreated | Format-List
-                } else {
-                    Write-Host "No Logs Found"
-                    Write-Host `n
+                    Write-Host $Node -ForegroundColor Green 
+                    $EventLogs | Where-Object PSComputerName -EQ $Node | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List 
+                } else { 
+                    Write-Host "Error collecting logs!" 
+                    Write-Host `n 
                 }
-            }
-        } elseif ($ClusterCheck -eq $False) {
-            $EventLogs = $False
-            Write-Host $env:COMPUTERNAME -ForegroundColor Green
-            $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message 
-            if ($EventLogs) {
-                $EventLogs | Sort-Object TimeCreated | Format-List
-            } else {
-                Write-Host "No Logs Found"
-            }
-        }
-    }
-}
+            }  
+        } elseif ($ClusterCheck -eq $False) { 
+            $EventLogs = $False 
+            Write-Host $env:COMPUTERNAME -ForegroundColor Green 
+            $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message  
+            if ($EventLogs) { 
+                $EventLogs | Sort-Object TimeCreated | Format-List 
+            } else { 
+                Write-Host "No Logs Found" 
+            } 
+        } 
+    } 
+} 
 
 Function Get-HyperVMaintenanceQC {
     <#
