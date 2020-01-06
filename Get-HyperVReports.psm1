@@ -452,20 +452,37 @@ function Get-HyperVVMInfo {
         # Filter for IPv4 addresses
         $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
         
-        # Collects VMs into variable for foreach loop
-        $VMs = foreach ($Node in $ClusterNodes) {
-            Get-VM -ComputerName $Node.Name    
-        }
     }    
     process {
         
         Write-Host `n
         Write-Host "Gathering data from VMs... Please be patient." -ForegroundColor White
 
+        # Clear any old jobs out related to this script. 
+        Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
+
+        # Setup ScriptBlock for Invoke-Command.
+        $VMInfoPull = {  
+            Get-VM | Select ComputerName,VMName,ProcessorCount,MemoryStartup
+        } 
+             
+        # Use psjobs to pull VM data from all cluster nodes at the same time.
+        Invoke-Command -ComputerName $ClusterNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
+
+        # Collect VM data from jobs and assign to $VMs
+        $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
+
         # Collects information from VMs and creates $VMInfo variable with all VM info.  
         try{           
             $VMInfo = foreach ($VM in $VMs) {
-                if ( ($MenuChoice -eq 1) -or ($MenuChoice -eq 2) ) {
+                if ($MenuChoice -eq 1) {
+                    [PSCustomObject]@{
+                        Host = $VM.ComputerName
+                        VMName = $VM.VMName
+                        vCPU = $VM.ProcessorCount
+                        RAM = [math]::Round($VM.MemoryStartup /1GB)                                                
+                    }                                                 
+                } elseif ($MenuChoice -eq 2) {
                     $VMNetworkAdapters = Get-VMNetworkAdapter -ComputerName $VM.Computername -VMName $VM.VMName
                     foreach ($Adapter in $VMNetworkAdapters) {
                         $VMNetworkAdapterVlans = Get-VMNetworkAdapterVlan -VMNetworkAdapter $Adapter
@@ -473,16 +490,14 @@ function Get-HyperVVMInfo {
                             [PSCustomObject]@{
                                 Host = $VM.ComputerName
                                 VMName = $VM.VMName
-                                vCPU = $VM.ProcessorCount
-                                RAM = [math]::Round($VM.MemoryStartup /1GB)
                                 IPAddress = $Adapter.Ipaddresses | Select-String -Pattern $IPv4
                                 VLAN = $AdapterVlan.AccessVlanId
                                 MAC = $Adapter.MacAddress
                                 vSwitch = $Adapter.SwitchName
                             }
                         }
-                    }                                                 
-                } elseif ($MenuChoice = 3) {
+                    }  
+                } elseif ($MenuChoice -eq 3) {
                     $Disks = Get-VMHardDiskDrive -ComputerName $VM.Computername -VMName $VM.VMName | Get-VHD -ComputerName $VM.Computername
                     foreach ($Disk in $Disks) {
                         [PSCustomObject]@{
