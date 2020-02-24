@@ -180,8 +180,8 @@ function Get-HyperVClusterLogs {
         $EventLogs = Get-Job | Where-Object Command -like *Get-WinEvent* | Receive-Job                      
         
         # Get list of Hyper-V servers that logs were collected from.
-        $LoggedNodes = $EventLogs.PSComputerName | Get-Unique            
-        
+        $LoggedNodes = $ClusterNodes.Name            
+
         foreach ($Node in $LoggedNodes) {
             if ($EventLogs) {
                 Write-Host $Node -ForegroundColor Green 
@@ -194,7 +194,7 @@ function Get-HyperVClusterLogs {
     } elseif ($ClusterCheck -eq $False) { 
         $EventLogs = $False 
         Write-Host $env:COMPUTERNAME -ForegroundColor Green 
-        $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message  
+        $EventLogs = Get-WinEvent -FilterHashtable $Filter | Where-Object -Property Message -Like "*$Messagetxt*" | Select-Object TimeCreated,ProviderName,Message  
         if ($EventLogs) { 
             $EventLogs | Sort-Object TimeCreated | Format-List 
         } else { 
@@ -211,6 +211,13 @@ Function Get-HyperVMaintenanceQC {
     [CmdletBinding()]
     param()
 
+    $ClusterCheck = Get-Cluster -ErrorAction SilentlyContinue
+    if ($ClusterCheck -eq $False) {  
+        Write-host "This script only works for clustered Hyper-V servers." -ForegroundColor Red
+        Start-Sleep -s 3
+        Get-HyperVReports
+    }
+    
     # Gather Cluster Variables
     $Cluster = Get-Cluster
     $ClusterNodes = Get-ClusterNode
@@ -221,11 +228,6 @@ Function Get-HyperVMaintenanceQC {
     $VirtMemory = $False
     $NonClusteredVMs = $False
     
-    if ($ClusterCheck -eq $False) {  
-        Write-host "This is not a Hyper-V cluster node. Try again." -ForegroundColor Red
-        break
-    }
-
     Clear-Host
     Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
