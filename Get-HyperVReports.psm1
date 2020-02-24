@@ -250,15 +250,20 @@ Function Get-HyperVMaintenanceQC {
     Write-Host "Calculating cluster memory usage..." -ForegroundColor Green -BackgroundColor Black
 
     # Building variable that has memory info for all of the cluster nodes.
-    $VMHostMemory = foreach ($Node in $ClusterNodes) {
-        [PSCustomObject]@{
-            Name = $Node.Name
-            TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $Node.Name).TotalPhysicalMemory /1GB )
-            AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $Node.Name).FreePhysicalMemory ) /1024 /1024 )
-            UsableMemory = [math]::Round( (Get-Counter -ComputerName $Node.Name -Counter "\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory").Readings.Split(":")[1] / 1024 )
+    try {
+        $VMHostMemory = foreach ($Node in $ClusterNodes) {
+            [PSCustomObject]@{
+                Name = $Node.Name
+                TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $Node.Name).TotalPhysicalMemory /1GB )
+                AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $Node.Name).FreePhysicalMemory ) /1024 /1024 )
+                UsableMemory = [math]::Round( (Get-Counter -ComputerName $Node.Name -Counter "\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory").Readings.Split(":")[1] / 1024 )
+            }
         }
-    }
-    
+    } catch {
+        Write-Host "Couldn't collect Memory usage from cluster nodes!" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }  
+   
     # Adding the hosts memory values together.
     foreach ($VMHost in $VMHostMemory) {
         $TotalVMHostMemory += $VMHost.TotalMemory
@@ -275,11 +280,20 @@ Function Get-HyperVMaintenanceQC {
     $UsableMemoryAfterFailure = ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
     $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure        
 
-    # Collect unclustered VMs
-    $NonClusteredVMs = foreach ($Node in $ClusterNodes) {
-        Get-VM -ComputerName $Node.Name | Where-Object IsClustered -eq $False 
-    }
-    
+    # Clear any old jobs out related to this script. 
+    Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
+            
+    # Setup ScriptBlock for Invoke-Command.
+    $GetVMScriptBlock = {  
+        Get-VM | Where-Object IsClustered -EQ $False
+    } 
+  
+    # Use jobs to pull event logs from all cluster nodes at the same time.
+    Invoke-Command -ComputerName $ClusterNodes -ScriptBlock $GetVMScriptBlock -AsJob | Wait-Job | Out-Null
+
+    # Collect eventlogs from jobs and assign to $EventLogs
+    $NonClusteredVMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
+       
     # Sort Nonclustered VMs by their state for readability.
     $NonClusteredVMsSorted = $NonClusteredVMs | Sort-Object State
 
@@ -329,7 +343,8 @@ Function Get-HyperVMaintenanceQC {
     
     # Prints nonclustered VMs.
     foreach ($VM in $NonClusteredVMsSorted) {
-        Write-Host  $VM.ComputerName - $VM.State - $VM.Name -ForegroundColor Yellow
+        $VMOutput = "     " + $VM.ComputerName + " - " + $VM.State + " - " + $VM.Name
+        Write-Host $VMOutput -ForegroundColor Yellow
     }
 }
 
