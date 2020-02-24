@@ -127,7 +127,11 @@ function Get-HyperVClusterLogs {
     $ClusterCheck = $False
     $ClusterCheck = Get-Cluster
     $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
-
+    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+	$DomainNodes = foreach ($Node in $ClusterNodes) {
+		$Node.Name + "." + $Domain
+    }
+    
     # Prints the Menu. Accepts input. 
     Clear-Host 
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
@@ -139,7 +143,7 @@ function Get-HyperVClusterLogs {
     $MenuChoice = Read-Host "Please select menu number"
     Write-Host `n   
 
-    # Builds a 24hour $StartDate and #EndDate unless date is provided. 
+    # Builds a 24hour $StartDate and #EndDate unless date is provided.
     Switch ($MenuChoice) {
         1 {
             $StartDate = (Get-Date).AddDays(-1)    
@@ -160,7 +164,7 @@ function Get-HyperVClusterLogs {
     }
 
     # Collects text to filter the event log with. 
-    $Messagetxt = Read-Host "Enter the text you would like to search the eventlogs for."  
+    $Messagetxt = Read-Host "Enter the text you would like to search the eventlogs for"  
     Write-Host `n
     
     # Filter for log collection.            
@@ -184,7 +188,7 @@ function Get-HyperVClusterLogs {
         
         Write-Host "Reviewing Hyper-V servers for eventlogs containing $Messagetxt. Please be patient."    
         # Use jobs to pull event logs from all cluster nodes at the same time.
-        Invoke-Command -ComputerName $ClusterNodes -ScriptBlock $EventLogScriptBlock -ArgumentList $Filter,$Messagetxt -AsJob | Wait-Job | Out-Null
+        Invoke-Command -ComputerName $DomainNodes -ScriptBlock $EventLogScriptBlock -ArgumentList $Filter,$Messagetxt -AsJob | Wait-Job | Out-Null
 
         # Collect eventlogs from jobs and assign to $EventLogs
         $EventLogs = Get-Job | Where-Object Command -like *Get-WinEvent* | Receive-Job                      
@@ -194,17 +198,13 @@ function Get-HyperVClusterLogs {
         Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
         Write-Host "                                               Clustered Hyper-V Eventlog Search"                                                      -ForegroundColor White 
         Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
-        Write-Host `n
+        Write-Host `n       
 
-        # Get list of Hyper-V servers that logs were collected from.
-        $LoggedNodes = $ClusterNodes.Name            
-
-        foreach ($Node in $LoggedNodes) {
-            Write-Host $Node -ForegroundColor Green
+        foreach ($Node in $DomainNodes) {
+            Write-Host $Node.split(".")[0] -ForegroundColor Green
             if ($EventLogNodes -contains $Node) {
                 $EventLogs | Where-Object PSComputerName -EQ $Node | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List 
             } else { 
-                Write-Host `n
                 Write-Host "No Logs found." 
                 Write-Host `n 
             }
@@ -239,7 +239,11 @@ Function Get-HyperVMaintenanceQC {
     # Gather Cluster Variables
     $Cluster = Get-Cluster
     $ClusterNodes = Get-ClusterNode
-
+    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+	$DomainNodes = foreach ($Node in $ClusterNodes) {
+		$Node.Name + "." + $Domain
+    }
+    
     # Variable Setup
     $TotalVMHostMemory = $False
     $TotalUsableVMHostMemory = $False
@@ -289,7 +293,7 @@ Function Get-HyperVMaintenanceQC {
     } 
   
     # Use jobs to pull event logs from all cluster nodes at the same time.
-    Invoke-Command -ComputerName $ClusterNodes -ScriptBlock $GetVMScriptBlock -AsJob | Wait-Job | Out-Null
+    Invoke-Command -ComputerName $DomainNodes -ScriptBlock $GetVMScriptBlock -AsJob | Wait-Job | Out-Null
 
     # Collect eventlogs from jobs and assign to $EventLogs
     $NonClusteredVMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
@@ -343,7 +347,7 @@ Function Get-HyperVMaintenanceQC {
     
     # Prints nonclustered VMs.
     foreach ($VM in $NonClusteredVMsSorted) {
-        $VMOutput = "     " + $VM.ComputerName + " - " + $VM.State + " - " + $VM.Name
+        $VMOutput = " " + $VM.ComputerName + " - " + $VM.State + " - " + $VM.Name
         Write-Host $VMOutput -ForegroundColor Yellow
     }
 }
@@ -449,7 +453,11 @@ function Get-HyperVVMInfo {
 
     # Pull Cluster node data for script.
     $ClusterNodes = Get-ClusterNode -ErrorAction Stop
-    
+    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+	$DomainNodes = foreach ($Node in $ClusterNodes) {
+		$Node.Name + "." + $Domain
+	}
+	
     # Filter for IPv4 addresses
     $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
     
@@ -465,7 +473,7 @@ function Get-HyperVVMInfo {
     } 
             
     # Use psjobs to pull VM data from all cluster nodes at the same time.
-    Invoke-Command -ComputerName $ClusterNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
+    Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
 
     # Collect VM data from jobs and assign to $VMs
     $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
