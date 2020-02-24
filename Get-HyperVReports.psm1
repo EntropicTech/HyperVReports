@@ -89,7 +89,7 @@ function Get-HyperVCAULogs {
             Get-WinEvent -ComputerName $Node.Name -LogName *ClusterAwareUpdating* | Where-Object TimeCreated -Match $StartDate | Select-Object TimeCreated,Message 
         }
     } catch {
-        Write-Host "Couldn't collect the event logs from cluster nodes!" -ForegroundColor Red
+        Write-Host "Couldn't collect the eventlogs from cluster nodes!" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
     }        
 
@@ -160,7 +160,7 @@ function Get-HyperVClusterLogs {
     }
 
     # Collects text to filter the event log with. 
-    $Messagetxt = Read-Host "Enter text to filter the Event Logs by VM Name or Event log text"  
+    $Messagetxt = Read-Host "Enter the text you would like to search the eventlogs for."  
     Write-Host `n
     
     # Filter for log collection.            
@@ -461,7 +461,7 @@ function Get-HyperVVMInfo {
 
     # Setup ScriptBlock for Invoke-Command.
     $VMInfoPull = {  
-        Get-VM | Select ComputerName,VMName,ProcessorCount,MemoryStartup
+        Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
     } 
             
     # Use psjobs to pull VM data from all cluster nodes at the same time.
