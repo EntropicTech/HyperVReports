@@ -533,4 +533,3 @@ function Get-HyperVVMInfo {
         }
     }
 }    
-Get-HyperVReports
