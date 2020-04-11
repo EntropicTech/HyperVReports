@@ -249,7 +249,7 @@ Function Get-HyperVMaintenanceQC {
     [CmdletBinding()]
     param()
 
-    $ClusterCheck = Get-Cluster -ErrorAction SilentlyContinue
+    $ClusterCheck = Get-ClusterCheck
     if ($ClusterCheck -eq $False) {  
         Write-host "This script only works for clustered Hyper-V servers." -ForegroundColor Red
         Start-Sleep -s 3
