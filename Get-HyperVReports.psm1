@@ -38,6 +38,27 @@ function Get-HyperVReports {
     }  
 }
 
+function Get-ClusterCheck {
+    <#
+        .SYNOPSIS
+            This function performs a check to see if this script is being executed on a clustered Hyper-V server. It converts that into a bool for use in the script.
+    #>
+    [CmdletBinding()]
+    param()
+
+    $ErrorActionPreference = 'SilentlyContinue'  
+    
+    $result = $False
+   
+    $BoolClusterCheck = Get-Cluster
+
+    if ($BoolClusterCheck) {
+        $result = $True
+    }
+
+    $result
+}
+
 function Get-HyperVCAULogs {
     <#
         .SYNOPSIS
@@ -124,8 +145,7 @@ function Get-HyperVClusterLogs {
     param()   
 
     # Setting up Variables.
-    $ClusterCheck = $False
-    $ClusterCheck = Get-Cluster
+    $ClusterCheck = Get-ClusterCheck
     $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
     $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
 	$DomainNodes = foreach ($Node in $ClusterNodes) {
@@ -438,7 +458,7 @@ function Get-HyperVVMInfo {
             Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.
     #>    
     [CmdletBinding()]
-    param()    
+    param()
 
     # Prints the Menu. Accepts input.
     Clear-Host
@@ -451,33 +471,36 @@ function Get-HyperVVMInfo {
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host "Menu Choice"
 
-    # Pull Cluster node data for script.
-    $ClusterNodes = Get-ClusterNode -ErrorAction Stop
-    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-	$DomainNodes = foreach ($Node in $ClusterNodes) {
-		$Node.Name + "." + $Domain
-	}
-	
     # Filter for IPv4 addresses
     $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
-    
+
+    # Pull Cluster node data for script.
     Write-Host `n
     Write-Host "Gathering data from VMs... Please be patient." -ForegroundColor White
+    if (Get-ClusterCheck) {
+        $ClusterNodes = Get-ClusterNode -ErrorAction Stop
+        $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+        $DomainNodes = foreach ($Node in $ClusterNodes) {
+		    $Node.Name + "." + $Domain
+	    }
+        # Clear any old jobs out related to this script. 
+        Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
 
-    # Clear any old jobs out related to this script. 
-    Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
-
-    # Setup ScriptBlock for Invoke-Command.
-    $VMInfoPull = {  
-        Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
-    } 
+        # Setup ScriptBlock for Invoke-Command.
+        $VMInfoPull = {  
+            Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
+        } 
             
-    # Use psjobs to pull VM data from all cluster nodes at the same time.
-    Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
+        # Use psjobs to pull VM data from all cluster nodes at the same time.
+        Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
 
-    # Collect VM data from jobs and assign to $VMs
-    $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
+        # Collect VM data from jobs and assign to $VMs
+        $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
 
+    } else {
+        $VMs = Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
+    }   
+    
     # Collects information from VMs and creates $VMInfo variable with all VM info.  
     try{           
         $VMInfo = foreach ($VM in $VMs) {
