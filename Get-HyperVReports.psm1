@@ -32,7 +32,7 @@ function Get-HyperVReports {
         default { 
             Clear-Host
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVReports 
         }
     }  
@@ -71,7 +71,7 @@ function Get-HyperVCAULogs {
     $ClusterCheck = Get-ClusterCheck
     if ($ClusterCheck -eq $False) {  
         Write-host "This script only works for clustered Hyper-V servers." -ForegroundColor Red
-        Start-Sleep -s 3
+        Start-Sleep -Seconds 3
         Get-HyperVReports
     }
 
@@ -186,7 +186,7 @@ function Get-HyperVClusterLogs {
         } default {
             Clear-Host
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVClusterLogs
         }
     }
@@ -261,7 +261,7 @@ Function Get-HyperVMaintenanceQC {
     $ClusterCheck = Get-ClusterCheck
     if ($ClusterCheck -eq $False) {  
         Write-host "This script only works for clustered Hyper-V servers." -ForegroundColor Red
-        Start-Sleep -s 3
+        Start-Sleep -Seconds 3
         Get-HyperVReports
     }
     
@@ -455,7 +455,7 @@ function Get-HyperVStorageReport {
         3 { $results | Select-Object "#",CSVName,ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
         default { 
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVStorageReport
         }
     }
@@ -560,7 +560,7 @@ function Get-HyperVVMInfo {
         3 { $VMInfo | Select-Object VMName,Disk,Size,PotentialSize,"VHDX Type" | Sort-Object VMName | Format-Table -AutoSize }
         default { 
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVStorageReport
         }
     }
