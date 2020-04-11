@@ -46,12 +46,12 @@ function Get-ClusterCheck {
     [CmdletBinding()]
     param()
 
-    $ErrorActionPreference = 'SilentlyContinue'  
-    
-    $result = $False
-   
-    $BoolClusterCheck = Get-Cluster
+    # Variable Setup
+    $ErrorActionPreference = 'SilentlyContinue'      
+    $result = $False   
 
+    # Check to see if this is a functional cluster. If so, return $True.
+    $BoolClusterCheck = Get-Cluster
     if ($BoolClusterCheck) {
         $result = $True
     }
