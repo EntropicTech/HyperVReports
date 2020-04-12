@@ -296,7 +296,7 @@ Function Get-HyperVMaintenanceQC {
         Write-Host "Couldn't collect Memory usage from cluster nodes!" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
     }  
-   
+    
     # Adding the hosts memory values together.
     foreach ($VMHost in $VMHostMemory) {
         $TotalVMHostMemory += $VMHost.TotalMemory
