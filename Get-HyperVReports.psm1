@@ -6,6 +6,8 @@ function Get-HyperVReports {
     [CmdletBinding()]
     param()
      
+    Get-AdminCheck
+
     # Sets Console to black background
     $Host.UI.RawUI.BackgroundColor = "Black"
 
@@ -59,6 +61,22 @@ function Get-ClusterCheck {
     $result
 }
 
+function Get-AdminCheck {
+    <#
+        .SYNOPSIS
+            This function performs a check to see if this script is being executed in an administrative prompt. Breaks if not.
+    #>
+    [CmdletBinding()]
+    param()
+
+    # Checks to see if it is being run in an administrative prompt. Breaks the script if not.
+    if ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544") -eq $False ) {
+
+        Write-Error "This script must be run with administrator privledges. Relaunch script in an administrative prompt."
+        break
+    }
+}
+
 function Get-HyperVCAULogs {
     <#
         .SYNOPSIS
@@ -66,6 +84,8 @@ function Get-HyperVCAULogs {
     #>
     [CmdletBinding()]
     param()
+
+    Get-AdminCheck
 
     # Verifying this is being run on a cluster.
     $ClusterCheck = Get-ClusterCheck
@@ -151,6 +171,8 @@ function Get-HyperVClusterLogs {
     #>     
     [CmdletBinding()]
     param()   
+
+    Get-AdminCheck
 
     # Setting up Variables.
     $ClusterCheck = Get-ClusterCheck
@@ -256,6 +278,8 @@ Function Get-HyperVMaintenanceQC {
     #>
     [CmdletBinding()]
     param()
+
+    Get-AdminCheck
 
     # Verifying this is being run on a cluster.
     $ClusterCheck = Get-ClusterCheck
@@ -389,6 +413,8 @@ function Get-HyperVStorageReport {
     [CmdletBinding()]
     param()
 
+    Get-AdminCheck
+
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
@@ -468,6 +494,8 @@ function Get-HyperVVMInfo {
     #>    
     [CmdletBinding()]
     param()
+
+    Get-AdminCheck
 
     # Prints the Menu. Accepts input.
     Clear-Host
