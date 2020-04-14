@@ -176,12 +176,14 @@ function Get-HyperVClusterLogs {
 
     # Setting up Variables.
     $ClusterCheck = Get-ClusterCheck
-    $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
-    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-	$DomainNodes = foreach ($Node in $ClusterNodes) {
-		$Node.Name + "." + $Domain
+    if ($ClusterCheck) {
+        $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
+        $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+        $DomainNodes = foreach ($Node in $ClusterNodes) {
+		    $Node.Name + "." + $Domain
+        }
     }
-    
+
     # Prints the Menu. Accepts input. 
     Clear-Host 
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
