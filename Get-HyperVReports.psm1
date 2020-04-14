@@ -422,65 +422,84 @@ function Get-HyperVStorageReport {
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host "               Hyper-V Storage Reports"                       -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "[1]  Full report" -ForegroundColor White
-    Write-Host "[2]  Storage Utilization" -ForegroundColor White
-    Write-Host "[3]  Cluster Storage IO - 2016 Only" -ForegroundColor White
+    Write-Host "[1]  Cluster Storage - Full report" -ForegroundColor White
+    Write-Host "[2]  Cluster Storage - Utilization" -ForegroundColor White
+    Write-Host "[3]  Cluster Storage - IO - 2016/2019 Only" -ForegroundColor White
+    Write-Host "[4]  Local Storage - Utilization" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host "Menu Choice"
 
-    # Builds $CSVINfo to gather disk info for final report.
-    try {
-        
-        # Variable Setup
-        $OSVersion = [environment]::OSVersion.Version.Major
-        $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
+    if ($MenuChoice -eq 1 -or $MenuChoice -eq 2 -or $MenuChoice -eq 3) {
 
-        $results = foreach ($CSV in $CSVs) {    
+        # Builds $CSVINfo to gather disk info for final report.
+        try {
+        
+            # Variable Setup
+            $OSVersion = [environment]::OSVersion.Version.Major
+            $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
+
+            $results = foreach ($CSV in $CSVs) {    
             
-            # Collecting CSV information
-            $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
-            $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
-            $FriendlyPath = $ClusterPath.Split("\")[2]
-            $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
-            $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
-            $CSVState =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath)[0]
+                # Collecting CSV information
+                $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
+                $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
+                $FriendlyPath = $ClusterPath.Split("\")[2]
+                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+                $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
+                $CSVState =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath)[0]
             
-            if ($OSVersion -eq 10) {
-                $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
-                [PSCustomObject]@{
-                    "#" = $CSV.DiskNumber
-                    Block = $VolumeBlock.AllocationUnitSize
-                    CSVName = $CSVState.Name
-                    ClusterPath = $ClusterPath
-                    "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                    "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
-                    "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
-                    IOPS = $QOS.IOPS
-                    Latency = [math]::Round($QOS.Latency, 2)
-                    "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                if ($OSVersion -eq 10) {
+                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
+                    [PSCustomObject]@{
+                        "#" = $CSV.DiskNumber
+                        Block = $VolumeBlock.AllocationUnitSize
+                        CSVName = $CSVState.Name
+                        ClusterPath = $ClusterPath
+                        "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        IOPS = $QOS.IOPS
+                        Latency = [math]::Round($QOS.Latency, 2)
+                        "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                    }
+                } else {
+                    [PSCustomObject]@{
+                        "#" = $CSV.DiskNumber
+                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
+                        CSVName = $CSVState.Name
+                        ClusterPath = $ClusterPath
+                        "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                    }
                 }
-            } else {
-                [PSCustomObject]@{
-                    "#" = $CSV.DiskNumber
-                    Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
-                    CSVName = $CSVState.Name
-                    ClusterPath = $ClusterPath
-                    "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                    "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
-                    "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
-                }
+            }  
+        } catch {
+            Write-Host "Couldn't process Cluster Shared Volume data!" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
+        }         
+
+    } elseif ($MenuChoice -eq 4) {
+    
+        $Volumes = Get-Volume | Where DriveLetter -NE $null
+        $results = foreach ($disk in $Volumes) {
+
+            [PSCustomObject]@{
+                Drive = $disk.DriveLetter
+                Label = $disk.FileSystemLabel
+                'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
+                'Size(GB)' = [math]::Round($disk.Size /1GB)
+                'Free %' = [math]::Round($disk.Size / $disk.SizeRemaining, 1)
             }
-        }  
-    } catch {
-        Write-Host "Couldn't process Cluster Shared Volume data!" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-    }         
+        }
+    }
 
     # Prints report based on $MenuChoice.
     switch ($MenuChoice) {
         1 { $results | Sort-Object "#" | Format-Table -AutoSize }
         2 { $results | Select-Object "#",CSVName,ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
         3 { $results | Select-Object "#",CSVName,ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
+        4 { $results | Sort-Object Drive | Format-Table -AutoSize }
         default { 
             Write-Host "Incorrect Choice. Choose a number from the menu."
             Start-Sleep -Seconds 3
