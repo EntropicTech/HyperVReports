@@ -489,7 +489,7 @@ function Get-HyperVStorageReport {
                 Label = $disk.FileSystemLabel
                 'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
                 'Size(GB)' = [math]::Round($disk.Size /1GB)
-                'Free %' = [math]::Round($disk.Size / $disk.SizeRemaining, 1)
+                'Free %' = [math]::Round(($disk.SizeRemaining / $disk.Size) * 100) 
             }
         }
     }
