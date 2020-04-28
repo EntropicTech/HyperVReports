@@ -481,7 +481,7 @@ function Get-HyperVStorageReport {
 
     } elseif ($MenuChoice -eq 4) {
     
-        $Volumes = Get-Volume | Where DriveLetter -NE $null
+        $Volumes = Get-Volume | Where-Object DriveLetter -NE $null
         $results = foreach ($disk in $Volumes) {
 
             [PSCustomObject]@{
@@ -530,7 +530,7 @@ function Get-HyperVVMInfo {
     $MenuChoice = Read-Host "Menu Choice"
 
     # Filter for IPv4 addresses
-    $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
+    [Regex]$IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
 
     # Pull Cluster node data for script.
     Write-Host `n
