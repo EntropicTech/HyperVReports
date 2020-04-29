@@ -604,9 +604,9 @@ function Get-HyperVVMInfo {
 
     # Prints report based on $MenuChoice.
     switch ($MenuChoice) {
-        1 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
-        2 { $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize }
-        3 { $VMInfo | Select-Object VMName,Disk,Size,PotentialSize,"VHDX Type" | Sort-Object VMName | Format-Table -AutoSize }
+        1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
+        2 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
+        3 { $VMInfo | Sort-Object VMName | Format-Table -AutoSize }
         default { 
             Write-Host "Incorrect Choice. Choose a number from the menu."
             Start-Sleep -Seconds 3
