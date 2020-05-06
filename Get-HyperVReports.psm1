@@ -226,8 +226,18 @@ function Get-HyperVClusterLogs {
         EndTime = $EndDate 
     }               
 
+    Write-Host "Reviewing Hyper-V servers for eventlogs containing $Messagetxt. Please be patient."   
+
+    Clear-Host
+    Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
+    Write-Host "                                               Clustered Hyper-V Eventlog Search"                                                     -ForegroundColor White 
+    Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green
+    Write-Host "Search results for: $Messagetxt"
+    Write-Host `n
+       
+
     # Builds $EventLogs variable used in report. 
-    if ($ClusterCheck) { 
+    if ($ClusterCheck -eq $True) { 
 
         # Clear any old jobs out related to this script. 
         Get-Job | Where-Object Command -like *Get-WinEvent* | Remove-Job
@@ -237,20 +247,13 @@ function Get-HyperVClusterLogs {
             param($Filter,$Messagetxt) 
             Get-WinEvent -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*"
         } 
-        
-        Write-Host "Reviewing Hyper-V servers for eventlogs containing $Messagetxt. Please be patient."    
+         
         # Use jobs to pull event logs from all cluster nodes at the same time.
         Invoke-Command -ComputerName $DomainNodes -ScriptBlock $EventLogScriptBlock -ArgumentList $Filter,$Messagetxt -AsJob | Wait-Job | Out-Null
 
         # Collect eventlogs from jobs and assign to $EventLogs
         $EventLogs = Get-Job | Where-Object Command -like *Get-WinEvent* | Receive-Job                      
-        $EventLogNodes = $EventLogs.PSComputerName | Get-Unique
-
-        Clear-Host
-        Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
-        Write-Host "                                               Clustered Hyper-V Eventlog Search"                                                      -ForegroundColor White 
-        Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
-        Write-Host `n       
+        $EventLogNodes = $EventLogs.PSComputerName | Get-Unique   
 
         foreach ($Node in $DomainNodes) {
             Write-Host $Node.split(".")[0] -ForegroundColor Green
@@ -528,12 +531,12 @@ function Get-HyperVVMInfo {
     Write-Host "[3]  VM VHDX Size/Location/Type" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host "Menu Choice"
+    Write-Host `n
 
     # Filter for IPv4 addresses
     [Regex]$IPv4 = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
 
     # Pull Cluster node data for script.
-    Write-Host `n
     Write-Host "Gathering data from VMs... Please be patient." -ForegroundColor White
     if (Get-ClusterCheck) {
         $ClusterNodes = Get-ClusterNode -ErrorAction Stop
