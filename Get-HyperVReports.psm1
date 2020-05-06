@@ -530,7 +530,7 @@ function Get-HyperVVMInfo {
     $MenuChoice = Read-Host "Menu Choice"
 
     # Filter for IPv4 addresses
-    [Regex]$IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
+    [Regex]$IPv4 = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
 
     # Pull Cluster node data for script.
     Write-Host `n
