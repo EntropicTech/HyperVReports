@@ -1,5 +1,27 @@
 # Get-HyperVReports
 
+This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
+
+ * Parsing the Hyper-V logs for a single node or across a cluster
+ * N+1 Maintenance QC
+ * Cluster Aware Update report
+ * Clustered Shared Volume IO and utilization
+ * Informational reports for VMs
+
+## Getting Started
+
+The Preferred method is to install directly from the PSGallery.
+
+```
+# Set your current PowerShell session to use TLS1.2. This is a requirement for the PSGallery.
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+# Install the HyperVReports module.
+Install-Module -Name HyperVReports -Force -AllowClobber
+```
+
+### Get-HyperVReports
+
 Brings up menu to choose desired report.
 
 ```
@@ -15,7 +37,7 @@ Brings up menu to choose desired report.
 Menu Choice: 
 ```
 
-# Get-HyperVClusterLogs
+### Get-HyperVClusterLogs
 
 Filter the Hyper-V Cluster logs by time range and error text.
 
@@ -28,6 +50,11 @@ Filter the Hyper-V Cluster logs by time range and error text.
 --------------------------------------------------------
 Please select menu number: 1
 Enter text to filter the Event Logs by VM Name or Event log text: RDP
+
+--------------------------------------------------------------------------------------------------------------------------------------
+                                               Clustered Hyper-V Eventlog Search
+--------------------------------------------------------------------------------------------------------------------------------------
+Search results for: ET-RDP-01
 
 ET-HV-01
 
@@ -51,7 +78,7 @@ ProviderName : Microsoft-Windows-Hyper-V-Chipset
 Message      : 'ET-RDP-01' successfully booted an operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
 ```
 
-# Get-HyperVMaintenanceQC
+### Get-HyperVMaintenanceQC
 
 Verifies that the cluster can sustain a single node failure and that all VMs are clustered.
 ```
@@ -70,7 +97,7 @@ Verifies that the cluster can sustain a single node failure and that all VMs are
 -------------------------------------------
 ```
 
-# Get-HyperVCAULogs
+### Get-HyperVCAULogs
 
 Shows report of dates CAU was performed and then pulls the CAU logs and hotfixes installed for selected date.
 ```
@@ -140,7 +167,7 @@ ET-HV-01 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
 ET-HV-02 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
 ```
 
-# Get-HyperVStorageReport
+### Get-HyperVStorageReport
 
 Pulls various reports for the Cluster Shared Volumes
 
@@ -148,9 +175,10 @@ Pulls various reports for the Cluster Shared Volumes
 --------------------------------------------------------
                Hyper-V Storage Reports
 --------------------------------------------------------
-[1]  Full report
-[2]  Storage Utilization
-[3]  Cluster Storage IO - 2016 Only
+[1]  Cluster Storage - Full report
+[2]  Cluster Storage - Utilization
+[3]  Cluster Storage - IO - 2016/2019 Only
+[4]  Local Storage - Utilization
 --------------------------------------------------------
 Menu Choice: 1
 
@@ -159,7 +187,7 @@ Menu Choice: 1
 1 65536 C:\ClusterStorage\Volume2      978     1000    2.2  929   11.89  5.7
 ```
 
-# Get-HyperVVMInfo
+### Get-HyperVVMInfo
 
 Prints various reports for the VMs
 
@@ -167,19 +195,25 @@ Prints various reports for the VMs
 --------------------------------------------------------
                   Hyper-V VM Reports
 --------------------------------------------------------
-[1]  Full report
-[2]  VM Resource Allocation
-[3]  VM Networking
+[1]  VM vCPU and RAM
+[2]  VM Networking
+[3]  VM VHDX Size/Location/Type
 --------------------------------------------------------
-Menu Choice: 1
+Menu Choice: 2
 
-Host     VMName        vCPU RAM IPAddress     VLAN MAC          vSwitch  
-----     ------        ---- --- ---------     ---- ---          -------  
-ET-HV-01 ET-DC-2        2   2 192.168.0.60    0    00155D0A0C55 SETswitch
-ET-HV-01 ET-RDP-01      4   4 192.168.0.18    0    00155D002027 SETswitch
-ET-HV-01 ET-DC-01       2   2 192.168.0.20    0    00155D002021 SETswitch
-ET-HV-01 ET-FS-01       4   4 192.168.0.7     0    00155D0A0C51 SETswitch
-ET-HV-01 ET-RDP-03      4   4 192.168.0.25    0    00155D002026 SETswitch
-ET-HV-02 ET-QB-01       8   8 192.168.0.23    0    00155D002023 SETswitch
-ET-HV-02 ET-RDP-02      4   4 192.168.0.45    0    00155D0A0C54 SETswitch
+
+Gathering data from VMs... Please be patient.
+
+Host     VMName              IPAddress     VLAN MAC          vSwitch
+----     ------              ---------     ---- ---          -------
+ET-HV-02 ET-7D2D-02          192.168.2.21     0 00155D026610 SETTeam
+ET-HV-03 ET-ARK-02           192.168.2.20     0 00155D02660F SETTeam
+ET-HV-03 ET-CA-01            192.168.2.26     0 00155D026612 SETTeam
+ET-HV-01 ET-DC-02            192.168.2.6      0 00155D02660C SETTeam
+ET-HV-01 ET-DEV-01           192.168.2.120    0 00155D026607 SETTeam
+ET-HV-03 ET-RDP-01           192.168.2.47     0 00155D026613 SETTeam
+ET-HV-03 ET-WAC-02           192.168.2.24     0 00155D026611 SETTeam
+ET-HV-03 PBRM-RDP-03         192.168.2.43     0 00155D026615 SETTeam
+ET-HV-02 PBRM-WAC-01         192.168.2.22     0 00155D026618 SETTeam
+ET-HV-02 PLEX-01             192.168.2.244    0 00155D026614 SETTeam
 ```
