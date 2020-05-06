@@ -6,6 +6,8 @@ function Get-HyperVReports {
     [CmdletBinding()]
     param()
      
+    Get-AdminCheck
+
     # Sets Console to black background
     $Host.UI.RawUI.BackgroundColor = "Black"
 
@@ -32,10 +34,47 @@ function Get-HyperVReports {
         default { 
             Clear-Host
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVReports 
         }
     }  
+}
+
+function Get-ClusterCheck {
+    <#
+        .SYNOPSIS
+            This function performs a check to see if this script is being executed on a clustered Hyper-V server. It converts that into a bool for use in the script.
+    #>
+    [CmdletBinding()]
+    param()
+
+    # Variable Setup
+    $ErrorActionPreference = 'SilentlyContinue'      
+    $result = $False   
+
+    # Check to see if this is a functional cluster. If so, return $True.
+    $BoolClusterCheck = Get-Cluster
+    if ($BoolClusterCheck) {
+        $result = $True
+    }
+
+    $result
+}
+
+function Get-AdminCheck {
+    <#
+        .SYNOPSIS
+            This function performs a check to see if this script is being executed in an administrative prompt. Breaks if not.
+    #>
+    [CmdletBinding()]
+    param()
+
+    # Checks to see if it is being run in an administrative prompt. Breaks the script if not.
+    if ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544") -eq $False ) {
+
+        Write-Error "This script must be run with administrator privledges. Relaunch script in an administrative prompt."
+        break
+    }
 }
 
 function Get-HyperVCAULogs {
@@ -45,6 +84,16 @@ function Get-HyperVCAULogs {
     #>
     [CmdletBinding()]
     param()
+
+    Get-AdminCheck
+
+    # Verifying this is being run on a cluster.
+    $ClusterCheck = Get-ClusterCheck
+    if ($ClusterCheck -eq $False) {  
+        Write-host "This script only works for clustered Hyper-V servers." -ForegroundColor Red
+        Start-Sleep -Seconds 3
+        Get-HyperVReports
+    }
 
     # Collect Variables
     try {                        
@@ -123,15 +172,18 @@ function Get-HyperVClusterLogs {
     [CmdletBinding()]
     param()   
 
+    Get-AdminCheck
+
     # Setting up Variables.
-    $ClusterCheck = $False
-    $ClusterCheck = Get-Cluster
-    $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
-    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-	$DomainNodes = foreach ($Node in $ClusterNodes) {
-		$Node.Name + "." + $Domain
+    $ClusterCheck = Get-ClusterCheck
+    if ($ClusterCheck) {
+        $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
+        $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+        $DomainNodes = foreach ($Node in $ClusterNodes) {
+		    $Node.Name + "." + $Domain
+        }
     }
-    
+
     # Prints the Menu. Accepts input. 
     Clear-Host 
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
@@ -158,7 +210,7 @@ function Get-HyperVClusterLogs {
         } default {
             Clear-Host
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVClusterLogs
         }
     }
@@ -174,8 +226,18 @@ function Get-HyperVClusterLogs {
         EndTime = $EndDate 
     }               
 
+    Write-Host "Reviewing Hyper-V servers for eventlogs containing $Messagetxt. Please be patient."   
+
+    Clear-Host
+    Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
+    Write-Host "                                               Clustered Hyper-V Eventlog Search"                                                     -ForegroundColor White 
+    Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green
+    Write-Host "Search results for: $Messagetxt"
+    Write-Host `n
+       
+
     # Builds $EventLogs variable used in report. 
-    if ($ClusterCheck) { 
+    if ($ClusterCheck -eq $True) { 
 
         # Clear any old jobs out related to this script. 
         Get-Job | Where-Object Command -like *Get-WinEvent* | Remove-Job
@@ -185,20 +247,13 @@ function Get-HyperVClusterLogs {
             param($Filter,$Messagetxt) 
             Get-WinEvent -FilterHashtable $Filter -ErrorAction SilentlyContinue | Where-Object -Property Message -like "*$Messagetxt*"
         } 
-        
-        Write-Host "Reviewing Hyper-V servers for eventlogs containing $Messagetxt. Please be patient."    
+         
         # Use jobs to pull event logs from all cluster nodes at the same time.
         Invoke-Command -ComputerName $DomainNodes -ScriptBlock $EventLogScriptBlock -ArgumentList $Filter,$Messagetxt -AsJob | Wait-Job | Out-Null
 
         # Collect eventlogs from jobs and assign to $EventLogs
         $EventLogs = Get-Job | Where-Object Command -like *Get-WinEvent* | Receive-Job                      
-        $EventLogNodes = $EventLogs.PSComputerName | Get-Unique
-
-        Clear-Host
-        Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
-        Write-Host "                                               Clustered Hyper-V Eventlog Search"                                                      -ForegroundColor White 
-        Write-Host -------------------------------------------------------------------------------------------------------------------------------------- -ForegroundColor Green 
-        Write-Host `n       
+        $EventLogNodes = $EventLogs.PSComputerName | Get-Unique   
 
         foreach ($Node in $DomainNodes) {
             Write-Host $Node.split(".")[0] -ForegroundColor Green
@@ -229,10 +284,13 @@ Function Get-HyperVMaintenanceQC {
     [CmdletBinding()]
     param()
 
-    $ClusterCheck = Get-Cluster -ErrorAction SilentlyContinue
+    Get-AdminCheck
+
+    # Verifying this is being run on a cluster.
+    $ClusterCheck = Get-ClusterCheck
     if ($ClusterCheck -eq $False) {  
         Write-host "This script only works for clustered Hyper-V servers." -ForegroundColor Red
-        Start-Sleep -s 3
+        Start-Sleep -Seconds 3
         Get-HyperVReports
     }
     
@@ -267,7 +325,7 @@ Function Get-HyperVMaintenanceQC {
         Write-Host "Couldn't collect Memory usage from cluster nodes!" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
     }  
-   
+    
     # Adding the hosts memory values together.
     foreach ($VMHost in $VMHostMemory) {
         $TotalVMHostMemory += $VMHost.TotalMemory
@@ -360,73 +418,94 @@ function Get-HyperVStorageReport {
     [CmdletBinding()]
     param()
 
+    Get-AdminCheck
+
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host "               Hyper-V Storage Reports"                       -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "[1]  Full report" -ForegroundColor White
-    Write-Host "[2]  Storage Utilization" -ForegroundColor White
-    Write-Host "[3]  Cluster Storage IO - 2016 Only" -ForegroundColor White
+    Write-Host "[1]  Cluster Storage - Full report" -ForegroundColor White
+    Write-Host "[2]  Cluster Storage - Utilization" -ForegroundColor White
+    Write-Host "[3]  Cluster Storage - IO - 2016/2019 Only" -ForegroundColor White
+    Write-Host "[4]  Local Storage - Utilization" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host "Menu Choice"
 
-    # Builds $CSVINfo to gather disk info for final report.
-    try {
-        
-        # Variable Setup
-        $OSVersion = [environment]::OSVersion.Version.Major
-        $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
+    if ($MenuChoice -eq 1 -or $MenuChoice -eq 2 -or $MenuChoice -eq 3) {
 
-        $results = foreach ($CSV in $CSVs) {    
+        # Builds $CSVINfo to gather disk info for final report.
+        try {
+        
+            # Variable Setup
+            $OSVersion = [environment]::OSVersion.Version.Major
+            $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
+
+            $results = foreach ($CSV in $CSVs) {    
             
-            # Collecting CSV information
-            $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
-            $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
-            $FriendlyPath = $ClusterPath.Split("\")[2]
-            $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
-            $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
-            $CSVState =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath)[0]
+                # Collecting CSV information
+                $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
+                $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
+                $FriendlyPath = $ClusterPath.Split("\")[2]
+                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+                $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
+                $CSVState =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath)[0]
             
-            if ($OSVersion -eq 10) {
-                $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
-                [PSCustomObject]@{
-                    "#" = $CSV.DiskNumber
-                    Block = $VolumeBlock.AllocationUnitSize
-                    CSVName = $CSVState.Name
-                    ClusterPath = $ClusterPath
-                    "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                    "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
-                    "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
-                    IOPS = $QOS.IOPS
-                    Latency = [math]::Round($QOS.Latency, 2)
-                    "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                if ($OSVersion -eq 10) {
+                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
+                    [PSCustomObject]@{
+                        "#" = $CSV.DiskNumber
+                        Block = $VolumeBlock.AllocationUnitSize
+                        CSVName = $CSVState.Name
+                        ClusterPath = $ClusterPath
+                        "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        IOPS = $QOS.IOPS
+                        Latency = [math]::Round($QOS.Latency, 2)
+                        "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                    }
+                } else {
+                    [PSCustomObject]@{
+                        "#" = $CSV.DiskNumber
+                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
+                        CSVName = $CSVState.Name
+                        ClusterPath = $ClusterPath
+                        "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                    }
                 }
-            } else {
-                [PSCustomObject]@{
-                    "#" = $CSV.DiskNumber
-                    Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
-                    CSVName = $CSVState.Name
-                    ClusterPath = $ClusterPath
-                    "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                    "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
-                    "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
-                }
+            }  
+        } catch {
+            Write-Host "Couldn't process Cluster Shared Volume data!" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
+        }         
+
+    } elseif ($MenuChoice -eq 4) {
+    
+        $Volumes = Get-Volume | Where-Object DriveLetter -NE $null
+        $results = foreach ($disk in $Volumes) {
+
+            [PSCustomObject]@{
+                Drive = $disk.DriveLetter
+                Label = $disk.FileSystemLabel
+                'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
+                'Size(GB)' = [math]::Round($disk.Size /1GB)
+                'Free %' = [math]::Round(($disk.SizeRemaining / $disk.Size) * 100) 
             }
-        }  
-    } catch {
-        Write-Host "Couldn't process Cluster Shared Volume data!" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-    }         
+        }
+    }
 
     # Prints report based on $MenuChoice.
     switch ($MenuChoice) {
         1 { $results | Sort-Object "#" | Format-Table -AutoSize }
         2 { $results | Select-Object "#",CSVName,ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
         3 { $results | Select-Object "#",CSVName,ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
+        4 { $results | Sort-Object Drive | Format-Table -AutoSize }
         default { 
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVStorageReport
         }
     }
@@ -438,7 +517,9 @@ function Get-HyperVVMInfo {
             Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.
     #>    
     [CmdletBinding()]
-    param()    
+    param()
+
+    Get-AdminCheck
 
     # Prints the Menu. Accepts input.
     Clear-Host
@@ -450,34 +531,37 @@ function Get-HyperVVMInfo {
     Write-Host "[3]  VM VHDX Size/Location/Type" -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host "Menu Choice"
+    Write-Host `n
+
+    # Filter for IPv4 addresses
+    [Regex]$IPv4 = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
 
     # Pull Cluster node data for script.
-    $ClusterNodes = Get-ClusterNode -ErrorAction Stop
-    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-	$DomainNodes = foreach ($Node in $ClusterNodes) {
-		$Node.Name + "." + $Domain
-	}
-	
-    # Filter for IPv4 addresses
-    $IPv4 = ‘\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b’
-    
-    Write-Host `n
     Write-Host "Gathering data from VMs... Please be patient." -ForegroundColor White
+    if (Get-ClusterCheck) {
+        $ClusterNodes = Get-ClusterNode -ErrorAction Stop
+        $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+        $DomainNodes = foreach ($Node in $ClusterNodes) {
+		    $Node.Name + "." + $Domain
+	    }
+        # Clear any old jobs out related to this script. 
+        Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
 
-    # Clear any old jobs out related to this script. 
-    Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
-
-    # Setup ScriptBlock for Invoke-Command.
-    $VMInfoPull = {  
-        Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
-    } 
+        # Setup ScriptBlock for Invoke-Command.
+        $VMInfoPull = {  
+            Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
+        } 
             
-    # Use psjobs to pull VM data from all cluster nodes at the same time.
-    Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
+        # Use psjobs to pull VM data from all cluster nodes at the same time.
+        Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
 
-    # Collect VM data from jobs and assign to $VMs
-    $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
+        # Collect VM data from jobs and assign to $VMs
+        $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
 
+    } else {
+        $VMs = Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
+    }   
+    
     # Collects information from VMs and creates $VMInfo variable with all VM info.  
     try{           
         $VMInfo = foreach ($VM in $VMs) {
@@ -523,12 +607,12 @@ function Get-HyperVVMInfo {
 
     # Prints report based on $MenuChoice.
     switch ($MenuChoice) {
-        1 { $VMInfo | Select-Object Host,VMName,vCPU,RAM | Sort-Object Host | Format-Table -AutoSize }
-        2 { $VMInfo | Select-Object Host,VMName,IPAddress,VLAN,MAC,VSwitch | Sort-Object Host | Format-Table -AutoSize }
-        3 { $VMInfo | Select-Object VMName,Disk,Size,PotentialSize,"VHDX Type" | Sort-Object VMName | Format-Table -AutoSize }
+        1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
+        2 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
+        3 { $VMInfo | Sort-Object VMName | Format-Table -AutoSize }
         default { 
             Write-Host "Incorrect Choice. Choose a number from the menu."
-            Start-Sleep -s 3
+            Start-Sleep -Seconds 3
             Get-HyperVStorageReport
         }
     }
