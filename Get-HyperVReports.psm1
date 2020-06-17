@@ -444,11 +444,11 @@ function Get-HyperVStorageReport {
             $OSVersion = [environment]::OSVersion.Version.Major
             $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
 
-            $results = foreach ($CSV in $CSVs) {    
+            $results = foreach ($csv in $CSVs) {    
 
                 # Collecting CSV information
-                $AccessPathVolumeID = $CSV.AccessPaths.Split('/')[1]
-                $ClusterPath = $CSV.AccessPaths[0].TrimEnd('\')                
+                $AccessPathVolumeID = $csv.AccessPaths.Split('/')[1]
+                $ClusterPath = $csv.AccessPaths[0].TrimEnd('\')                
                 $FriendlyPath = $ClusterPath.Split('\')[2]
                 $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
 
@@ -456,7 +456,7 @@ function Get-HyperVStorageReport {
                     $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
                     $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq ($ClusterPath + '\')
                     [PSCustomObject]@{
-                        '#' = $CSV.DiskNumber
+                        '#' = $csv.DiskNumber
                         Block = $VolumeBlock.AllocationUnitSize
                         CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
@@ -470,7 +470,7 @@ function Get-HyperVStorageReport {
                     }
                 } else {
                     [PSCustomObject]@{
-                        '#' = $CSV.DiskNumber
+                        '#' = $csv.DiskNumber
                         Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
                         CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
@@ -491,7 +491,7 @@ function Get-HyperVStorageReport {
         Write-Host `r
         Write-Host 'Pulling formation from local storage...' -ForegroundColor White
 
-        $Volumes = Get-Volume | Where-Object DriveLetter -NE $null
+        $Volumes = Get-Volume | Where-Object { $_.DriveLetter -NE $null -and $_.DriveType -eq 'Fixed' }
         $results = foreach ($disk in $Volumes) {
 
             [PSCustomObject]@{
