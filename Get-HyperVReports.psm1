@@ -451,6 +451,7 @@ function Get-HyperVStorageReport {
                 $ClusterPath = $csv.AccessPaths[0].TrimEnd('\')                
                 $FriendlyPath = $ClusterPath.Split('\')[2]
                 $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+                $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name[0]
 
                 if ($OSVersion -eq 10) {
                     $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
@@ -458,7 +459,7 @@ function Get-HyperVStorageReport {
                     [PSCustomObject]@{
                         '#' = $csv.DiskNumber
                         Block = $VolumeBlock.AllocationUnitSize
-                        CSVName = $FriendlyPath
+                        CSVName = $CSVName
                         ClusterPath = $ClusterPath
                         'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
                         'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
@@ -472,7 +473,7 @@ function Get-HyperVStorageReport {
                     [PSCustomObject]@{
                         '#' = $csv.DiskNumber
                         Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
-                        CSVName = $FriendlyPath
+                        CSVName = $CSVName
                         ClusterPath = $ClusterPath
                         'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
                         'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
@@ -480,7 +481,7 @@ function Get-HyperVStorageReport {
                         'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                     }
                 }
-            }  
+            }   
         } catch {
             Write-Host "Couldn't process Cluster Shared Volume data!" -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
