@@ -442,21 +442,20 @@ function Get-HyperVStorageReport {
             $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
 
             $results = foreach ($CSV in $CSVs) {    
-            
+
                 # Collecting CSV information
                 $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
                 $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
                 $FriendlyPath = $ClusterPath.Split("\")[2]
-                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -like $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
-                $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
-                $CSVState =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -Like $FriendlyPath)[0]
-            
+                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+
                 if ($OSVersion -eq 10) {
-                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -Like *$ClusterPath* 
+                    $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
+                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq $ClusterPath
                     [PSCustomObject]@{
                         "#" = $CSV.DiskNumber
                         Block = $VolumeBlock.AllocationUnitSize
-                        CSVName = $CSVState.Name
+                        CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
@@ -469,7 +468,7 @@ function Get-HyperVStorageReport {
                     [PSCustomObject]@{
                         "#" = $CSV.DiskNumber
                         Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
-                        CSVName = $CSVState.Name
+                        CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
                         "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
