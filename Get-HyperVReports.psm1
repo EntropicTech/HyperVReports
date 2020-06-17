@@ -425,14 +425,17 @@ function Get-HyperVStorageReport {
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host "               Hyper-V Storage Reports"                       -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "[1]  Cluster Storage - Full report" -ForegroundColor White
-    Write-Host "[2]  Cluster Storage - Utilization" -ForegroundColor White
-    Write-Host "[3]  Cluster Storage - IO - 2016/2019 Only" -ForegroundColor White
-    Write-Host "[4]  Local Storage - Utilization" -ForegroundColor White
+    Write-Host '[1]  Cluster Storage - Full report' -ForegroundColor White
+    Write-Host '[2]  Cluster Storage - Utilization' -ForegroundColor White
+    Write-Host '[3]  Cluster Storage - IO - 2016/2019 Only' -ForegroundColor White
+    Write-Host '[4]  Local Storage - Utilization' -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
-    $MenuChoice = Read-Host "Menu Choice"
+    $MenuChoice = Read-Host 'Menu Choice'
 
     if ($MenuChoice -eq 1 -or $MenuChoice -eq 2 -or $MenuChoice -eq 3) {
+
+        Write-Host `n 
+        Write-Host 'Pulling formation for Cluster Shared Volumes...'
 
         # Builds $CSVINfo to gather disk info for final report.
         try {
@@ -451,28 +454,28 @@ function Get-HyperVStorageReport {
 
                 if ($OSVersion -eq 10) {
                     $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
-                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq $ClusterPath
+                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq ($ClusterPath + '\')
                     [PSCustomObject]@{
-                        "#" = $CSV.DiskNumber
+                        '#' = $CSV.DiskNumber
                         Block = $VolumeBlock.AllocationUnitSize
                         CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
-                        "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                        "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
-                        "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                         IOPS = $QOS.IOPS
                         Latency = [math]::Round($QOS.Latency, 2)
-                        "MB/s" = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                        'MB/s' = [math]::Round(($QOS.Bandwidth /1MB), 1)
                     }
                 } else {
                     [PSCustomObject]@{
-                        "#" = $CSV.DiskNumber
+                        '#' = $CSV.DiskNumber
                         Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
                         CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
-                        "Used(GB)" = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                        "Size(GB)" = [math]::Round($ClusterSharedVolume.Size /1GB)
-                        "Free %" = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                     }
                 }
             }  
@@ -483,6 +486,9 @@ function Get-HyperVStorageReport {
 
     } elseif ($MenuChoice -eq 4) {
     
+        Write-Host `n
+        Write-Host 'Pulling formation from local storage...'
+
         $Volumes = Get-Volume | Where-Object DriveLetter -NE $null
         $results = foreach ($disk in $Volumes) {
 
@@ -498,12 +504,12 @@ function Get-HyperVStorageReport {
 
     # Prints report based on $MenuChoice.
     switch ($MenuChoice) {
-        1 { $results | Sort-Object "#" | Format-Table -AutoSize }
-        2 { $results | Select-Object "#",CSVName,ClusterPath,"Used(GB)","Size(GB)","Free %" | Sort-Object "#" | Format-Table -AutoSize }
-        3 { $results | Select-Object "#",CSVName,ClusterPath,"Size(GB)",IOPS,Latency,MB/s | Sort-Object "#" | Format-Table -AutoSize }
+        1 { $results | Sort-Object '#' | Format-Table -AutoSize }
+        2 { $results | Select-Object '#',CSVName,ClusterPath,'Used(GB)','Size(GB)','Free %' | Sort-Object '#' | Format-Table -AutoSize }
+        3 { $results | Select-Object '#',CSVName,ClusterPath,'Size(GB)',IOPS,Latency,MB/s | Sort-Object '#' | Format-Table -AutoSize }
         4 { $results | Sort-Object Drive | Format-Table -AutoSize }
         default { 
-            Write-Host "Incorrect Choice. Choose a number from the menu."
+            Write-Host 'Incorrect Choice. Choose a number from the menu.'
             Start-Sleep -Seconds 3
             Get-HyperVStorageReport
         }
