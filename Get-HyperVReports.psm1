@@ -447,9 +447,9 @@ function Get-HyperVStorageReport {
             $results = foreach ($CSV in $CSVs) {    
 
                 # Collecting CSV information
-                $AccessPathVolumeID = $CSV.AccessPaths.Split("/")[1]
-                $ClusterPath = $CSV.AccessPaths[0].TrimEnd("\")                
-                $FriendlyPath = $ClusterPath.Split("\")[2]
+                $AccessPathVolumeID = $CSV.AccessPaths.Split('/')[1]
+                $ClusterPath = $CSV.AccessPaths[0].TrimEnd('\')                
+                $FriendlyPath = $ClusterPath.Split('\')[2]
                 $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
 
                 if ($OSVersion -eq 10) {
