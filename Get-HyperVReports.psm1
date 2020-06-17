@@ -460,8 +460,9 @@ function Get-HyperVStorageReport {
                         Block = $VolumeBlock.AllocationUnitSize
                         CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
-                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
                         'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                         IOPS = $QOS.IOPS
                         Latency = [math]::Round($QOS.Latency, 2)
@@ -473,8 +474,9 @@ function Get-HyperVStorageReport {
                         Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
                         CSVName = $FriendlyPath
                         ClusterPath = $ClusterPath
-                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
+                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                        'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
                         'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                     }
                 }
@@ -495,8 +497,9 @@ function Get-HyperVStorageReport {
             [PSCustomObject]@{
                 Drive = $disk.DriveLetter
                 Label = $disk.FileSystemLabel
-                'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
                 'Size(GB)' = [math]::Round($disk.Size /1GB)
+                'Used(GB)' = [math]::Round($disk.Size - $disk.SizeRemaining /1GB)
+                'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
                 'Free %' = [math]::Round(($disk.SizeRemaining / $disk.Size) * 100) 
             }
         }
@@ -504,9 +507,9 @@ function Get-HyperVStorageReport {
 
     # Prints report based on $MenuChoice.
     switch ($MenuChoice) {
-        1 { $results | Sort-Object '#' | Format-Table -AutoSize }
-        2 { $results | Select-Object '#',CSVName,ClusterPath,'Used(GB)','Size(GB)','Free %' | Sort-Object '#' | Format-Table -AutoSize }
-        3 { $results | Select-Object '#',CSVName,ClusterPath,'Size(GB)',IOPS,Latency,MB/s | Sort-Object '#' | Format-Table -AutoSize }
+        1 { $results | Sort-Object '#' | Format-Table * -AutoSize }
+        2 { $results | Select-Object '#',CSVName,ClusterPath,'Size(GB)','Used(GB)','Free(GB)','Free %' | Sort-Object '#' | Format-Table -AutoSize }
+        3 { $results | Select-Object '#',CSVName,ClusterPath,IOPS,Latency,MB/s | Sort-Object '#' | Format-Table -AutoSize }
         4 { $results | Sort-Object Drive | Format-Table -AutoSize }
         default { 
             Write-Host 'Incorrect Choice. Choose a number from the menu.'
