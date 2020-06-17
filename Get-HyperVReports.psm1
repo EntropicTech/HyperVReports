@@ -423,19 +423,19 @@ function Get-HyperVStorageReport {
     # Prints the Menu. Accepts input.
     Clear-Host
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host "               Hyper-V Storage Reports"                       -ForegroundColor White
+    Write-Host "               Hyper-V Storage Reports"                 -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host '[1]  Cluster Storage - Full report' -ForegroundColor White
-    Write-Host '[2]  Cluster Storage - Utilization' -ForegroundColor White
-    Write-Host '[3]  Cluster Storage - IO - 2016/2019 Only' -ForegroundColor White
-    Write-Host '[4]  Local Storage - Utilization' -ForegroundColor White
+    Write-Host '[1]  Cluster Storage - Full report'                     -ForegroundColor White
+    Write-Host '[2]  Cluster Storage - Utilization'                     -ForegroundColor White
+    Write-Host '[3]  Cluster Storage - IO - 2016/2019 Only'             -ForegroundColor White
+    Write-Host '[4]  Local Storage - Utilization'                       -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
-    $MenuChoice = Read-Host 'Menu Choice'
+    $MenuChoice = Read-Host 'Menu Choice'                               
 
     if ($MenuChoice -eq 1 -or $MenuChoice -eq 2 -or $MenuChoice -eq 3) {
 
-        Write-Host `n 
-        Write-Host 'Pulling formation for Cluster Shared Volumes...'
+        Write-Host `r
+        Write-Host 'Pulling formation for Cluster Shared Volumes...' -ForegroundColor White
 
         # Builds $CSVINfo to gather disk info for final report.
         try {
@@ -486,8 +486,8 @@ function Get-HyperVStorageReport {
 
     } elseif ($MenuChoice -eq 4) {
     
-        Write-Host `n
-        Write-Host 'Pulling formation from local storage...'
+        Write-Host `r
+        Write-Host 'Pulling formation from local storage...' -ForegroundColor White
 
         $Volumes = Get-Volume | Where-Object DriveLetter -NE $null
         $results = foreach ($disk in $Volumes) {
