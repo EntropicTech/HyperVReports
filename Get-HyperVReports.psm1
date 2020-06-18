@@ -655,7 +655,8 @@ function Get-HyperVVMInfo
     {           
         $VMInfo = foreach ($vm in $VMs)
         {
-            if ($MenuChoice -eq 1) {
+            if ($MenuChoice -eq 1)
+            {
                 [PSCustomObject]@{
                     Host = $vm.ComputerName
                     VMName = $vm.VMName
