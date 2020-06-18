@@ -205,9 +205,9 @@ function Get-HyperVClusterLogs
     {
         $ClusterNodes = Get-ClusterNode -ErrorAction SilentlyContinue
         $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-        $DomainNodes = foreach ($Node in $ClusterNodes)
+        $DomainNodes = foreach ($node in $ClusterNodes)
         {
-		    $Node.Name + '.' + $Domain
+		    $node.Name + '.' + $Domain
         }
     }
 
@@ -289,12 +289,12 @@ function Get-HyperVClusterLogs
         $EventLogs = Get-Job | Where-Object Command -like *Get-WinEvent* | Receive-Job                      
         $EventLogNodes = $EventLogs.PSComputerName | Get-Unique   
 
-        foreach ($Node in $DomainNodes)
+        foreach ($node in $DomainNodes)
         {
-            Write-Host $Node.split(".")[0] -ForegroundColor Green
-            if ($EventLogNodes -contains $Node)
+            Write-Host $node.split(".")[0] -ForegroundColor Green
+            if ($EventLogNodes -contains $node)
             {
-                $EventLogs | Where-Object PSComputerName -EQ $Node | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List 
+                $EventLogs | Where-Object PSComputerName -EQ $node | Select-Object TimeCreated,ProviderName,Message | Sort-Object TimeCreated | Format-List 
             }
             else
             {
@@ -344,9 +344,9 @@ Function Get-HyperVMaintenanceQC
     $Cluster = Get-Cluster
     $ClusterNodes = Get-ClusterNode
     $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-    $DomainNodes = foreach ($Node in $ClusterNodes)
+    $DomainNodes = foreach ($node in $ClusterNodes)
     {
-		$Node.Name + '.' + $Domain
+		$node.Name + '.' + $Domain
     }
     
     # Variable Setup
@@ -361,13 +361,13 @@ Function Get-HyperVMaintenanceQC
     # Building variable that has memory info for all of the cluster nodes.
     try
     {
-        $VMHostMemory = foreach ($Node in $ClusterNodes)
+        $VMHostMemory = foreach ($node in $ClusterNodes)
         {
             [PSCustomObject]@{
-                Name = $Node.Name
-                TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $Node.Name).TotalPhysicalMemory /1GB )
-                AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $Node.Name).FreePhysicalMemory ) /1024 /1024 )
-                UsableMemory = [math]::Round( (Get-Counter -ComputerName $Node.Name -Counter '\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory').Readings.Split(':')[1] / 1024 )
+                Name = $node.Name
+                TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $node.Name).TotalPhysicalMemory /1GB )
+                AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $node.Name).FreePhysicalMemory ) /1024 /1024 )
+                UsableMemory = [math]::Round( (Get-Counter -ComputerName $node.Name -Counter '\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory').Readings.Split(':')[1] / 1024 )
             }
         }
     }
@@ -625,9 +625,9 @@ function Get-HyperVVMInfo
     {
         $ClusterNodes = Get-ClusterNode -ErrorAction Stop
         $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-        $DomainNodes = foreach ($Node in $ClusterNodes)
+        $DomainNodes = foreach ($node in $ClusterNodes)
         {
-		    $Node.Name + '.' + $Domain
+		    $node.Name + '.' + $Domain
         }
         
         # Clear any old jobs out related to this script. 
