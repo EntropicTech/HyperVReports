@@ -667,18 +667,18 @@ function Get-HyperVVMInfo
             elseif ($MenuChoice -eq 2)
             {
                 $VMNetworkAdapters = Get-VMNetworkAdapter -ComputerName $vm.Computername -VMName $vm.VMName
-                foreach ($Adapter in $VMNetworkAdapters)
+                foreach ($adapter in $VMNetworkAdapters)
                 {
                     $VMNetworkAdapterVlans = Get-VMNetworkAdapterVlan -VMNetworkAdapter $Adapter
-                    foreach ($AdapterVlan in $VMNetworkAdapterVlans)
+                    foreach ($adapterVlan in $VMNetworkAdapterVlans)
                     {
                         [PSCustomObject]@{
                             Host = $vm.ComputerName
                             VMName = $vm.VMName
-                            IPAddress = $Adapter.Ipaddresses | Select-String -Pattern $IPv4
-                            VLAN = $AdapterVlan.AccessVlanId
-                            MAC = $Adapter.MacAddress
-                            vSwitch = $Adapter.SwitchName
+                            IPAddress = $adapter.Ipaddresses | Select-String -Pattern $IPv4
+                            VLAN = $adapterVlan.AccessVlanId
+                            MAC = $adapter.MacAddress
+                            vSwitch = $adapter.SwitchName
                         }
                     }
                 }  
