@@ -698,7 +698,8 @@ function Get-HyperVVMInfo
                 }
             }  
         }                    
-    } catch
+    }
+    catch
     {
         Write-Host "Couldn't collect information from the VMs!" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red              
