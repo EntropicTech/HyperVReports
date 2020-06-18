@@ -493,14 +493,14 @@ function Get-HyperVStorageReport {
         Write-Host `r
         Write-Host 'Pulling formation from local storage...' -ForegroundColor White
 
-        $Volumes = Get-Volume | Where-Object { $_.DriveLetter -NE $null -and $_.DriveType -eq 'Fixed' }
+        $Volumes = Get-Volume | Where-Object { $null -ne $_.DriveLetter -and $_.DriveType -eq 'Fixed' }
         $results = foreach ($disk in $Volumes) {
 
             [PSCustomObject]@{
                 Drive = $disk.DriveLetter
                 Label = $disk.FileSystemLabel
                 'Size(GB)' = [math]::Round($disk.Size /1GB)
-                'Used(GB)' = [math]::Round($disk.Size - $disk.SizeRemaining /1GB)
+                'Used(GB)' = [math]::Round( ($disk.Size - $disk.SizeRemaining) /1GB)
                 'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
                 'Free %' = [math]::Round(($disk.SizeRemaining / $disk.Size) * 100) 
             }
