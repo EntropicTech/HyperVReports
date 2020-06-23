@@ -728,15 +728,6 @@ function Get-HyperVVMInfo
         if ($ExportToCSV)
         {
             $results | Sort-Object Host | Export-Csv -Path $ExportToCSV -NoTypeInformation
-            $TestExport = Test-Path $ExportToCSV
-            if ($TestExport -eq $True)
-            {
-                Write-Host "Export to $ExportToCSV completed successfully."
-            }
-            else
-            {
-                Write-Host "Export to $ExportToCSV failed. Verify path and try again."
-            }
         }
         else
         {
@@ -748,15 +739,6 @@ function Get-HyperVVMInfo
         if ($ExportToCSV)
         {
             $results | Sort-Object VMName | Export-Csv -Path $ExportToCSV -NoTypeInformation
-            $TestExport = Test-Path $ExportToCSV
-            if ($TestExport -eq $True)
-            {
-                Write-Host "Export to $ExportToCSV completed successfully."
-            }
-            else
-            {
-                Write-Host "Export to $ExportToCSV failed. Verify path and try again."
-            }
         }
         else
         {
@@ -768,5 +750,19 @@ function Get-HyperVVMInfo
         Write-Host 'Incorrect Choice. Choose a number from the menu.'
         Start-Sleep -Seconds 3
         Get-HyperVStorageReport    
+    }
+    
+    # Checks to see if a CSV exists at the export path.
+    if ($ExportToCSV)
+    {
+        $TestExport = Test-Path $ExportToCSV
+        if ($TestExport -eq $True)
+        {
+            Write-Host "Export to $ExportToCSV completed successfully."
+        }
+        else
+        {
+            Write-Host "Export to $ExportToCSV failed. Verify path and try again."
+        }
     }
 }    
