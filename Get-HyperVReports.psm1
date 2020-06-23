@@ -597,10 +597,25 @@ function Get-HyperVVMInfo
 {
     <#
         .SYNOPSIS
-            Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.
+            Get-HyperVVMInfo collects Hyper-V VM info and prints report of their data.       
+        
+        .PARAMETER ExportToCSV
+            Exports the report to specified .CSV in path.       
+        
+        .EXAMPLE
+            C:\PS> Get-HyperVVMInfo -ExportToCSV C:\rs-pkgs\VMInfo.csv
+
     #>    
     [CmdletBinding()]
-    param()
+    param(
+
+        [Parameter(Mandatory=$False)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        # Exports the report to specified .CSV in path.
+        $ExportToCSV
+
+    )
 
     Get-AdminCheck
 
@@ -621,6 +636,8 @@ function Get-HyperVVMInfo
 
     # Pull Cluster node data for script.
     Write-Host 'Gathering data from VMs... ' -ForegroundColor White
+    Write-Host `r
+
     if (Get-ClusterCheck)
     {
         $ClusterNodes = Get-ClusterNode -ErrorAction Stop
@@ -653,7 +670,7 @@ function Get-HyperVVMInfo
     # Collects information from VMs and creates $VMInfo variable with all VM info.  
     try
     {           
-        $VMInfo = foreach ($vm in $VMs)
+        $results = foreach ($vm in $VMs)
         {
             if ($MenuChoice -eq 1)
             {
@@ -706,16 +723,50 @@ function Get-HyperVVMInfo
     }       
 
     # Prints report based on $MenuChoice.
-    switch ($MenuChoice)
+    if ($MenuChoice -eq 1 -or $MenuChoice -eq 2)
     {
-        1 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
-        2 { $VMInfo | Sort-Object Host | Format-Table -AutoSize }
-        3 { $VMInfo | Sort-Object VMName | Format-Table -AutoSize }
-        default
-        { 
-            Write-Host 'Incorrect Choice. Choose a number from the menu.'
-            Start-Sleep -Seconds 3
-            Get-HyperVStorageReport
+        if ($ExportToCSV)
+        {
+            $results | Sort-Object Host | Export-Csv -Path $ExportToCSV -NoTypeInformation
+            $TestExport = Test-Path $ExportToCSV
+            if ($TestExport -eq $True)
+            {
+                Write-Host "Export to $ExportToCSV completed successfully."
+            }
+            else
+            {
+                Write-Host "Export to $ExportToCSV failed. Verify path and try again."
+            }
         }
+        else
+        {
+            $results | Sort-Object Host | Format-Table -AutoSize
+        }    
+    }
+    elseif ($MenuChoice -eq 3)
+    {
+        if ($ExportToCSV)
+        {
+            $results | Sort-Object VMName | Export-Csv -Path $ExportToCSV -NoTypeInformation
+            $TestExport = Test-Path $ExportToCSV
+            if ($TestExport -eq $True)
+            {
+                Write-Host "Export to $ExportToCSV completed successfully."
+            }
+            else
+            {
+                Write-Host "Export to $ExportToCSV failed. Verify path and try again."
+            }
+        }
+        else
+        {
+            $results | Sort-Object VMName | Format-Table -AutoSize
+        }    
+    }
+    else
+    {
+        Write-Host 'Incorrect Choice. Choose a number from the menu.'
+        Start-Sleep -Seconds 3
+        Get-HyperVStorageReport    
     }
 }    
