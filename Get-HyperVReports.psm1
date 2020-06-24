@@ -343,11 +343,6 @@ Function Get-HyperVMaintenanceQC
     # Gather Cluster Variables
     $Cluster = Get-Cluster
     $ClusterNodes = Get-ClusterNode
-    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-    $DomainNodes = foreach ($node in $ClusterNodes)
-    {
-		$node.Name + '.' + $Domain
-    }
     
     # Variable Setup
     $TotalVMHostMemory = $False
