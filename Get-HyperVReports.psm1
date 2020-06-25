@@ -499,7 +499,7 @@ function Get-HyperVStorageReport
     if ($MenuChoice -eq 1 -or $MenuChoice -eq 2 -or $MenuChoice -eq 3)
     {
         Write-Host `r
-        Write-Host 'Pulling formation for Cluster Shared Volumes...' -ForegroundColor White
+        Write-Host 'Pulling information for Cluster Shared Volumes...' -ForegroundColor White
 
         # Builds $CSVINfo to gather disk info for final report.
         try
