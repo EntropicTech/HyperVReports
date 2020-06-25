@@ -560,7 +560,7 @@ function Get-HyperVStorageReport
     elseif ($MenuChoice -eq 4)
     {
         Write-Host `r
-        Write-Host 'Pulling formation from local storage...' -ForegroundColor White
+        Write-Host 'Pulling information from local storage...' -ForegroundColor White
 
         # Collect local disk information.
         $Volumes = Get-Volume | Where-Object { $null -ne $_.DriveLetter -and $_.DriveType -eq 'Fixed' }
