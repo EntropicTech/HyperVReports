@@ -82,6 +82,24 @@ function Get-AdminCheck
     }
 }
 
+Function Get-DomainNodes
+{
+    <#
+        .SYNOPSIS
+            Get-DomainNodes creates an object that contains all of the clusternodes with their FQDN.       
+    #>    
+    [CmdletBinding()]
+    param()
+
+    $ClusterNodes = Get-ClusterNode -ErrorAction Stop
+    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
+    $DomainNodes = foreach ($node in $ClusterNodes)
+    {
+		$node.Name + '.' + $Domain
+    }
+    $DomainNodes
+}
+
 function Get-HyperVCAULogs
 {
     <#
@@ -777,24 +795,42 @@ function Get-HyperVMissingSpace
     
     Get-AdminCheck
 
-    Write-Host 'Reviewing environment for items taking up extra space...'
+    Write-Host 'Reviewing environment for items taking up extra space...' -ForegroundColor White
     Write-Host `r
 
-    # Pull the number of DiskShadows that are currently on the Hyp.
-    $DiskShadowScript = "$env:TEMP + Temp.dsh"
-    'list shadows all' | Set-Content $DiskShadowScript
-    $DiskShadows = diskshadow /s $DiskShadowScript
-    [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
-    [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
-    
-    # Check to see if there were any shadows found and 
-    if ($NumberOfDiskShadows -eq '0')
+    # Checks the environment for any Checkpoints that might exist.
+    if (Get-ClusterCheck)
     {
-        Write-Host '0 Disk Shadows found.'
+        $VMSnapshots = Get-VMSnapshot -ComputerName (Get-DomainNodes) -VMName *
     }
     else
     {
+        $VMSnapshots = Get-VMSnapshot -VMName *
+    }
+
+    if ($VMSnapshots)
+    {
+        Write-Host "Checkpoints exist for the following VMs." -ForegroundColor Yellow
+        $VMSnapshots.Name
+        Write-Host `r 
+    }
+
+    # Pull the number of DiskShadows that are currently on the Hyp.
+    $DiskShadowScript = $env:TEMP + '\Temp.dsh'
+    'list shadows all' | Set-Content $DiskShadowScript
+    $DiskShadows = diskshadow /s $DiskShadowScript
+    $NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
+    if ($NoDiskShadowCheck -like '*No*')
+    {
+        Write-Host '0 Disk Shadows found.' -ForegroundColor Green
+        $DiskShadowCheck = $False        
+    }
+    else
+    {
+        [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
+        [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
         Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
         Write-Host "Verify that backups aren't running and then delete all Disk Shadows."
-    } 
+        $DiskShadowCheck = $True
+    }
 } 
