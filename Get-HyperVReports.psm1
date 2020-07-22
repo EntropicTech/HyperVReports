@@ -765,4 +765,36 @@ function Get-HyperVVMInfo
             Write-Host "Export to $ExportToCSV failed. Verify path and try again."
         }
     }
-}    
+}
+function Get-HyperVMissingSpace
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVMissingSpace goes through the Hyper-V environment looking for things taking up space.       
+    #>    
+    [CmdletBinding()]
+    param()
+    
+    Get-AdminCheck
+
+    Write-Host 'Reviewing environment for items taking up extra space...'
+    Write-Host `r
+
+    # Pull the number of DiskShadows that are currently on the Hyp.
+    $DiskShadowScript = "$env:TEMP + Temp.dsh"
+    'list shadows all' | Set-Content $DiskShadowScript
+    $DiskShadows = diskshadow /s $DiskShadowScript
+    [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
+    [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
+    
+    # Check to see if there were any shadows found and 
+    if ($NumberOfDiskShadows -eq '0')
+    {
+        Write-Host '0 Disk Shadows found.'
+    }
+    else
+    {
+        Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
+        Write-Host "Verify that backups aren't running and then delete all Disk Shadows."
+    } 
+} 
