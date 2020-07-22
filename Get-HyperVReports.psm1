@@ -810,8 +810,13 @@ function Get-HyperVMissingSpace
 
     if ($VMSnapshots)
     {
-        Write-Host "Checkpoints exist for the following VMs." -ForegroundColor Yellow
+        Write-Host 'Checkpoints exist for the following VMs.' -ForegroundColor Yellow
         $VMSnapshots.Name
+        Write-Host `r 
+    }
+    else
+    {
+        Write-Host 'No Checkpoints found.' -ForegroundColor Green
         Write-Host `r 
     }
 
@@ -819,10 +824,10 @@ function Get-HyperVMissingSpace
     $DiskShadowScript = $env:TEMP + '\Temp.dsh'
     'list shadows all' | Set-Content $DiskShadowScript
     $DiskShadows = diskshadow /s $DiskShadowScript
-    $NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
+    [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
     if ($NoDiskShadowCheck -like '*No*')
     {
-        Write-Host '0 Disk Shadows found.' -ForegroundColor Green
+        Write-Host 'No Disk Shadows found.' -ForegroundColor Green
         $DiskShadowCheck = $False        
     }
     else
