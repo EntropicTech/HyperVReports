@@ -100,6 +100,38 @@ Function Get-DomainNodes
     $DomainNodes
 }
 
+function Get-HyperVVMs
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVVMs uses PSJobs to pull all of the VMs from all Hyper-V servers at the same time.     
+    #>    
+    [CmdletBinding()]
+    param()
+
+    if (Get-ClusterCheck)
+    {
+        $DomainNodes = Get-DomainNodes
+
+        # Clear any old jobs out related to this script. 
+        Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
+
+        # Setup ScriptBlock for Invoke-Command.
+        $VMInfoPull = { Get-VM } 
+            
+        # Use psjobs to pull VM data from all cluster nodes at the same time.
+        Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
+
+        # Collect VM data from jobs and assign to $VMs
+        $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job
+    }
+    else
+    {
+        $VMs = Get-VM
+    }  
+    $VMs
+}
+
 function Get-HyperVCAULogs
 {
     <#
@@ -795,11 +827,32 @@ function Get-HyperVMissingSpace
     
     Get-AdminCheck
 
-    Write-Host 'Reviewing environment for items taking up extra space...' -ForegroundColor White
-    Write-Host `r
+    $ClusterCheck = Get-ClusterCheck
+
+    # Pull the number of DiskShadows that are currently on the Hyp.
+    Write-Host 'Checking for Disk Shadows...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    $DiskShadowScript = $env:TEMP + '\Temp.dsh'
+    'list shadows all' | Set-Content $DiskShadowScript
+    $DiskShadows = diskshadow /s $DiskShadowScript
+    [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
+    if ($NoDiskShadowCheck -like '*No*')
+    {
+        Write-Host 'No Disk Shadows found.' -ForegroundColor Green
+        Write-Host `r       
+    }
+    else
+    {
+        [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
+        [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
+        Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
+        Write-Host "Verify that backups aren't running and then delete all Disk Shadows."
+    }
 
     # Checks the environment for any Checkpoints that might exist.
-    if (Get-ClusterCheck)
+    Write-Host 'Checking for Checkpoints...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    if ($ClusterCheck)
     {
         $VMSnapshots = Get-VMSnapshot -ComputerName (Get-DomainNodes) -VMName *
     }
@@ -820,20 +873,56 @@ function Get-HyperVMissingSpace
         Write-Host `r 
     }
 
-    # Pull the number of DiskShadows that are currently on the Hyp.
-    $DiskShadowScript = $env:TEMP + '\Temp.dsh'
-    'list shadows all' | Set-Content $DiskShadowScript
-    $DiskShadows = diskshadow /s $DiskShadowScript
-    [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
-    if ($NoDiskShadowCheck -like '*No*')
+    # Pull all VM disks and check to see if they are an avhdx.
+    Write-Host 'Checking for AVHDXs...' -ForegroundColor White
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    $VMs = Get-HyperVVMs
+    [int]$AVHDXCheck = 0
+    $AllVMDisks = [System.Collections.ArrayList]@()
+    $AllVMDiskRoots = [System.Collections.ArrayList]@()
+    foreach ($vm in $VMs)
     {
-        Write-Host 'No Disk Shadows found.' -ForegroundColor Green       
+        $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
+        $AllVMDisks += $VMDisks
+        foreach ($disk in $VMDisks)
+        {
+            if ($disk.Path -like '*avhdx*')
+            {
+                Write-Host "$($vm.Name) - $($disk.Path)." -ForegroundColor Yellow 
+                $AVHDXCheck = $AVHDXCheck + 1
+            }
+              
+        }      
     }
-    else
+    if ($AVHDXCheck -eq '0')
     {
-        [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
-        [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
-        Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
-        Write-Host "Verify that backups aren't running and then delete all Disk Shadows."
+        Write-Host 'No AVHDXs found.' -ForegroundColor Green
     }
+    
+    # Checks all VMs to verify they don't have Save as the Automatic Stop Action
+    Write-Host `r
+    [int]$SaveActionCheck = 0
+    Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...' -ForegroundColor White
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    foreach ($vm in $VMs)
+    {
+        if ($vm.AutomaticStopAction -eq 'Save')
+        {
+            Write-Host "$($vm.VMName) is set to Save." -ForegroundColor Yellow
+            $SaveActionCheck = $SaveActionCheck + 1
+        }    
+    }
+    if ($SaveActionCheck -eq 0)
+    {
+        Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor White
+    }
+    
+    $AllVMDiskPaths = ($AllVMDisks).Path
+    foreach ($path in $AllVMDiskPaths)
+    {
+        $AllVMDiskRoots += $path.Split('\')[0] + '\' + $path.Split('\')[1] + '\'    
+    }
+    $UniqueDiskRoots = $AllVMDiskRoots | Get-Unique
+
+
 } 
