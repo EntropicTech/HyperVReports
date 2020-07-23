@@ -830,6 +830,8 @@ function Get-HyperVMissingSpace
     $ClusterCheck = Get-ClusterCheck
 
     # Pull the number of DiskShadows that are currently on the Hyp.
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for Disk Shadows...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     $DiskShadowScript = $env:TEMP + '\Temp.dsh'
@@ -850,6 +852,8 @@ function Get-HyperVMissingSpace
     }
 
     # Checks the environment for any Checkpoints that might exist.
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for Checkpoints...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     if ($ClusterCheck)
@@ -874,6 +878,8 @@ function Get-HyperVMissingSpace
     }
 
     # Pull all VM disks and check to see if they are an avhdx.
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for AVHDXs...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     $VMs = Get-HyperVVMs
@@ -901,7 +907,9 @@ function Get-HyperVMissingSpace
     
     # Checks all VMs to verify they don't have Save as the Automatic Stop Action
     Write-Host `r
+    Write-Host `r
     [int]$SaveActionCheck = 0
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     foreach ($vm in $VMs)
@@ -916,13 +924,4 @@ function Get-HyperVMissingSpace
     {
         Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor White
     }
-    
-    $AllVMDiskPaths = ($AllVMDisks).Path
-    foreach ($path in $AllVMDiskPaths)
-    {
-        $AllVMDiskRoots += $path.Split('\')[0] + '\' + $path.Split('\')[1] + '\'    
-    }
-    $UniqueDiskRoots = $AllVMDiskRoots | Get-Unique
-
-
 } 
