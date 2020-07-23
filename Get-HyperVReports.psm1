@@ -827,8 +827,7 @@ function Get-HyperVMissingSpace
     [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
     if ($NoDiskShadowCheck -like '*No*')
     {
-        Write-Host 'No Disk Shadows found.' -ForegroundColor Green
-        $DiskShadowCheck = $False        
+        Write-Host 'No Disk Shadows found.' -ForegroundColor Green       
     }
     else
     {
@@ -836,6 +835,5 @@ function Get-HyperVMissingSpace
         [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
         Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
         Write-Host "Verify that backups aren't running and then delete all Disk Shadows."
-        $DiskShadowCheck = $True
     }
 } 
