@@ -869,7 +869,7 @@ function Get-HyperVMissingStorage
 
     if ($VMSnapshots)
     {
-        $VMSnapshots.Name
+        Write-Host $VMSnapshots.Name -ForegroundColor Yellow
         Write-Host `r 
     }
     else
@@ -893,10 +893,19 @@ function Get-HyperVMissingStorage
         $AllVMDisks += $VMDisks
         foreach ($disk in $VMDisks)
         {
-            if ($disk.Path -like '*avhdx*')
+            if ($disk.Path -like '*.vhdx')
+            {
+                $AllVMDiskRoots += $disk.Path
+            }
+            elseif ($disk.Path -like '*.avhdx')
             {
                 Write-Host "$($vm.Name) - $($disk.Path)." -ForegroundColor Yellow 
                 $AVHDXCheck = $AVHDXCheck + 1
+                $Path = $disk.Path
+                while($Path = (Get-VHD -Path $Path).ParentPath)
+	            {
+		            $AllVMDiskRoots += $Path
+	            }
             }     
         }      
     }
@@ -905,6 +914,36 @@ function Get-HyperVMissingStorage
         Write-Host 'No AVHDXs found.' -ForegroundColor Green
     }
     
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for VHDXs that are not in use...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    
+    # Collect all VHDXs on clustered and unclustered storage.
+    $AllVHDXs = [System.Collections.ArrayList]@()   
+    $ClusterVHDXs = Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue    
+    $LocalDriveLetters = (Get-Volume | Where-Object DriveLetter -ne 'C').DriveLetter    
+    foreach ($driveLetter in $LocalDriveLetters)
+    {
+        $LocalVHDXs = (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName
+    }
+  
+    # Compare the list of all VHDXs to the list of VHDXs in use and create a list of VHDXs not in use by any VMs.
+    $AllVHDXs = ($ClusterVHDXs + $LocalVHDXs)
+    $UnusedVHDXs = (Compare-Object -ReferenceObject $AllVMDiskRoots -DifferenceObject $AllVHDXs).InputObject
+    if ($UnusedVHDXs)
+    {
+        foreach ($UnusedVHDX in $UnusedVHDXs)
+        {
+            Write-Host $UnusedVHDX -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        Write-Host 'No unused VHDXs found.' -ForegroundColor Green
+    }
+
     # Checks all VMs to verify they don't have Save as the Automatic Stop Action
     Write-Host `r
     Write-Host `r
