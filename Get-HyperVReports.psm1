@@ -896,8 +896,7 @@ function Get-HyperVMissingSpace
             {
                 Write-Host "$($vm.Name) - $($disk.Path)." -ForegroundColor Yellow 
                 $AVHDXCheck = $AVHDXCheck + 1
-            }
-              
+            }     
         }      
     }
     if ($AVHDXCheck -eq '0')
