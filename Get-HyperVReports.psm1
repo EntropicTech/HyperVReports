@@ -22,6 +22,7 @@ function Get-HyperVReports
     Write-Host '[3]  Cluster Aware Update History' -ForegroundColor White
     Write-Host '[4]  Storage Reports' -ForegroundColor White
     Write-Host '[5]  VM Reports' -ForegroundColor White
+    Write-Host '[6]  Review environment for missing storage.' -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     $MenuChoice = Read-Host 'Menu Choice'
 
@@ -33,6 +34,7 @@ function Get-HyperVReports
         3 { Get-HyperVCAULogs }
         4 { Get-HyperVStorageReport }
         5 { Get-HyperVVMInfo }
+        6 { Get-HyperVMissingStorage }
         default 
         { 
             Clear-Host
@@ -816,11 +818,11 @@ function Get-HyperVVMInfo
         }
     }
 }
-function Get-HyperVMissingSpace
+function Get-HyperVMissingStorage
 {
     <#
         .SYNOPSIS
-            Get-HyperVMissingSpace goes through the Hyper-V environment looking for things taking up space.       
+            Get-HyperVMissingStorage goes through the Hyper-V environment looking for things taking up space.       
     #>    
     [CmdletBinding()]
     param()
@@ -848,7 +850,7 @@ function Get-HyperVMissingSpace
         [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
         [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
         Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
-        Write-Host "Verify that backups aren't running and then delete all Disk Shadows."
+        Write-Host `r
     }
 
     # Checks the environment for any Checkpoints that might exist.
@@ -867,7 +869,6 @@ function Get-HyperVMissingSpace
 
     if ($VMSnapshots)
     {
-        Write-Host 'Checkpoints exist for the following VMs.' -ForegroundColor Yellow
         $VMSnapshots.Name
         Write-Host `r 
     }
