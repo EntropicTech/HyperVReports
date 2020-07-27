@@ -785,7 +785,7 @@ function Get-HyperVMissingStorage
     [CmdletBinding()]
     param()
     
-    Get-AdminCheck
+Get-AdminCheck
 
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
@@ -806,6 +806,27 @@ function Get-HyperVMissingStorage
         [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
         [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
         Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
+    }
+
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    # Checks all VMs to verify they don't have Save as the Automatic Stop Action.
+    [int]$SaveActionCheck = 0
+    foreach ($vm in $VMs)
+    {
+        if ($vm.AutomaticStopAction -eq 'Save')
+        {
+            Write-Host "$($vm.VMName)" -ForegroundColor Yellow
+            $SaveActionCheck = $SaveActionCheck + 1
+        }    
+    }
+    if ($SaveActionCheck -eq 0)
+    {
+        Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor Green
     }
 
     Write-Host `r
@@ -909,8 +930,7 @@ function Get-HyperVMissingStorage
         {
             $vhdx    
         }
-    }
-    
+    }   
  
     if ($UnusedVHDXs)
     {
@@ -927,21 +947,89 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...' -ForegroundColor White
+    Write-Host 'Checking for hrl files that are larger than 5GB...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    # Checks all VMs to verify they don't have Save as the Automatic Stop Action.
-    [int]$SaveActionCheck = 0
-    foreach ($vm in $VMs)
+    # Collect all HRLs on clustered and unclustered storage. 
+    $ClusterHRLs = Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.hrl' -Recurse -ErrorAction SilentlyContinue   
+    $LocalHRLs = [System.Collections.ArrayList]@()
+    $LocalHRLDataPull = [System.Collections.ArrayList]@()   
+    $LocalHRLDataPull += foreach ($driveLetter in $LocalDriveLetters)
     {
-        if ($vm.AutomaticStopAction -eq 'Save')
-        {
-            Write-Host "$($vm.VMName)" -ForegroundColor Yellow
-            $SaveActionCheck = $SaveActionCheck + 1
-        }    
+        Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.hrl' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*'
     }
-    if ($SaveActionCheck -eq 0)
+    $LocalHRLs = $LocalHRLDataPull.Where({$_ -ne $null})
+
+    # Determine if there is cluster storage, local storage or both and set variable accordingly.
+    [int]$HRLCheck = 0
+    $AllHRLs = [System.Collections.ArrayList]@()
+    if ($LocalHRLs -and $ClusterHRLs)
     {
-        Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor White
+        $AllHRLs = ($ClusterHRLs + $LocalHRLs)
+    }
+    elseif ($LocalHRLs)
+    {
+        $AllHRLs = $LocalHRLs
+    }
+    elseif ($ClusterHRLs)
+    {
+        $AllHRLs = $ClusterHRLs
+    }
+
+    # Check to see if any hrl files are larger than 5GB.
+    foreach ($hrl in $AllHRLs)
+    {
+        if ($hrl.Length -gt 5368706371)
+        {
+            Write-Host $hrl.FullName -ForegroundColor Yellow
+            $HRLCheck = $HRLCheck + 1
+        }
+    }
+    if ($HRLCheck -eq '0')
+    {
+        Write-Host 'All hrl files smaller than 5GBs.' -ForegroundColor Green
+    }
+
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for VHDX.temp files...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    # Collect all VHDX.tmp files on clustered and unclustered storage. 
+    $ClusterTmpVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue).FullName   
+    $LocalTmpVHDXs = [System.Collections.ArrayList]@()
+    $LocalTmpVHDXDataPull = [System.Collections.ArrayList]@()   
+    $LocalTmpVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
+    {
+        (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*').FullName
+    }
+    $LocalTmpVHDXs = $LocalTmpVHDXDataPull.Where({$_ -ne $null})
+
+    # Determine if there is cluster storage, local storage or both and set variable accordingly.
+    $AllTmpVHDXs = [System.Collections.ArrayList]@()
+    if ($LocalTmpVHDXs -and $ClusterTmpVHDXs)
+    {
+        $AllTmpVHDXs = ($ClusterTmpVHDXs + $LocalTmpVHDXs)
+    }
+    elseif ($LocalTmpVHDXs)
+    {
+        $AllTmpVHDXs = $LocalTmpVHDXs
+    }
+    elseif ($ClusterTmpVHDXs)
+    {
+        $AllTmpVHDXs = $ClusterTmpVHDXs
+    }
+
+    if ($AllTmpVHDXs)
+    {
+        foreach ($tmpVHDX in $AllTmpVHDXs)
+        {
+            Write-Host $tmpVHDX -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        Write-Host 'No VHDX.tmp files found.' -ForegroundColor Green
     }
 }
