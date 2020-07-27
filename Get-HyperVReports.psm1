@@ -444,24 +444,10 @@ Function Get-HyperVMaintenanceQC
     $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
     $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
     $UsableMemoryAfterFailure = ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
-    $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure        
-
-    # Clear any old jobs out related to this script. 
-    Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
-            
-    # Setup ScriptBlock for Invoke-Command.
-    $GetVMScriptBlock = {  
-        Get-VM | Where-Object IsClustered -EQ $False
-    } 
-  
-    # Use jobs to pull event logs from all cluster nodes at the same time.
-    Invoke-Command -ComputerName $DomainNodes -ScriptBlock $GetVMScriptBlock -AsJob | Wait-Job | Out-Null
-
-    # Collect eventlogs from jobs and assign to $EventLogs
-    $NonClusteredVMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
+    $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure          
        
     # Sort Nonclustered VMs by their state for readability.
-    $NonClusteredVMsSorted = $NonClusteredVMs | Sort-Object State
+    $NonClusteredVMsSorted = Get-HyperVVMs | Where-Object IsClustered -EQ $False | Sort-Object State
 
     Clear-Host
     
@@ -789,6 +775,7 @@ function Get-HyperVVMInfo
         }
     }
 }
+
 function Get-HyperVMissingStorage
 {
     <#
@@ -800,11 +787,12 @@ function Get-HyperVMissingStorage
     
     Get-AdminCheck
 
-    # Pull the number of DiskShadows that are currently on the Hyp.
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for Disk Shadows...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    
+    # Pull the number of DiskShadows that are currently on the Hyp.    
     $DiskShadowScript = $env:TEMP + '\Temp.dsh'
     'list shadows all' | Set-Content $DiskShadowScript
     $DiskShadows = diskshadow /s $DiskShadowScript
