@@ -851,7 +851,7 @@ function Get-HyperVMissingStorage
         {
             if ($disk.Path -like '*.vhdx')
             {
-                $AllVMDiskRoots += $disk.Path
+                $AllVMDiskRoots += $disk.Path.ToLower()
             }
             elseif ($disk.Path -like '*.avhdx')
             {
@@ -860,7 +860,7 @@ function Get-HyperVMissingStorage
                 $Path = $disk.Path
                 while($Path = (Get-VHD -Path $Path).ParentPath)
 	            {
-		            $AllVMDiskRoots += $Path
+		            $AllVMDiskRoots += $Path.ToLower()
 	            }
             }     
         }      
@@ -877,17 +877,41 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     
     # Collect all VHDXs on clustered and unclustered storage. 
-    $ClusterVHDXs = Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue    
-    $LocalDriveLetters = (Get-Volume | Where-Object DriveLetter -ne 'C').DriveLetter    
-    foreach ($driveLetter in $LocalDriveLetters)
+    $ClusterVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName    
+    $LocalDriveLetters = (Get-Volume).DriveLetter
+    $LocalVHDXs = [System.Collections.ArrayList]@()
+    $LocalVHDXDataPull = [System.Collections.ArrayList]@()   
+    $LocalVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
     {
-        $LocalVHDXs = (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName
+        (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*' ).FullName 
     }
-  
-    # Compare the list of all VHDXs to the list of VHDXs in use and create a list of VHDXs not in use by any VMs.
+    $LocalVHDXs = $LocalVHDXDataPull.Where({$_ -ne $null})
+      
+    # Determine if there is cluster storage, local storage or both and set variable accordingly.
     $AllVHDXs = [System.Collections.ArrayList]@()
-    $AllVHDXs = ($ClusterVHDXs + $LocalVHDXs)
-    $UnusedVHDXs = (Compare-Object -ReferenceObject $AllVMDiskRoots -DifferenceObject $AllVHDXs).InputObject
+    if ($LocalVHDXs -and $ClusterVHDXs)
+    {
+        $AllVHDXs = ($ClusterVHDXs.ToLower() + $LocalVHDXs.ToLower())
+    }
+    elseif ($LocalVHDXs)
+    {
+        $AllVHDXs = $LocalVHDXs.ToLower()
+    }
+    elseif ($ClusterVHDXs)
+    {
+        $AllVHDXs = $ClusterVHDXs.ToLower()
+    }
+
+    # Compare the list of all VHDXs to the list of VHDXs in use and create a list of VHDXs not in use by any VMs.
+    $UnusedVHDXs = foreach ($vhdx in $AllVHDXs)
+    {
+        if ( -not ( $AllVMDiskRoots.Contains($vhdx) ))
+        {
+            $vhdx    
+        }
+    }
+    
+ 
     if ($UnusedVHDXs)
     {
         foreach ($unusedVHDX in $UnusedVHDXs)
@@ -912,7 +936,7 @@ function Get-HyperVMissingStorage
     {
         if ($vm.AutomaticStopAction -eq 'Save')
         {
-            Write-Host "$($vm.VMName) is set to Save." -ForegroundColor Yellow
+            Write-Host "$($vm.VMName)" -ForegroundColor Yellow
             $SaveActionCheck = $SaveActionCheck + 1
         }    
     }
@@ -920,4 +944,4 @@ function Get-HyperVMissingStorage
     {
         Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor White
     }
-} 
+}
