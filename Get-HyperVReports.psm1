@@ -829,8 +829,6 @@ function Get-HyperVMissingStorage
     
     Get-AdminCheck
 
-    $ClusterCheck = Get-ClusterCheck
-
     # Pull the number of DiskShadows that are currently on the Hyp.
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
@@ -842,23 +840,23 @@ function Get-HyperVMissingStorage
     [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
     if ($NoDiskShadowCheck -like '*No*')
     {
-        Write-Host 'No Disk Shadows found.' -ForegroundColor Green
-        Write-Host `r       
+        Write-Host 'No Disk Shadows found.' -ForegroundColor Green    
     }
     else
     {
         [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
         [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
         Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
-        Write-Host `r
     }
 
-    # Checks the environment for any Checkpoints that might exist.
+    Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for Checkpoints...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    if ($ClusterCheck)
+
+    # Checks the environment for any Checkpoints that might exist.
+    if (Get-ClusterCheck)
     {
         $VMSnapshots = Get-VMSnapshot -ComputerName (Get-DomainNodes) -VMName *
     }
@@ -866,27 +864,26 @@ function Get-HyperVMissingStorage
     {
         $VMSnapshots = Get-VMSnapshot -VMName *
     }
-
     if ($VMSnapshots)
     {
         Write-Host $VMSnapshots.Name -ForegroundColor Yellow
-        Write-Host `r 
     }
     else
     {
-        Write-Host 'No Checkpoints found.' -ForegroundColor Green
-        Write-Host `r 
+        Write-Host 'No Checkpoints found.' -ForegroundColor Green      
     }
 
-    # Pull all VM disks and check to see if they are an avhdx.
+    Write-Host `r 
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for AVHDXs...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    $VMs = Get-HyperVVMs
+
+    # Pull all VM disks and check to see if they are an avhdx.
     [int]$AVHDXCheck = 0
     $AllVMDisks = [System.Collections.ArrayList]@()
     $AllVMDiskRoots = [System.Collections.ArrayList]@()
+    $VMs = Get-HyperVVMs
     foreach ($vm in $VMs)
     {
         $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
@@ -920,8 +917,7 @@ function Get-HyperVMissingStorage
     Write-Host 'Checking for VHDXs that are not in use...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     
-    # Collect all VHDXs on clustered and unclustered storage.
-    $AllVHDXs = [System.Collections.ArrayList]@()   
+    # Collect all VHDXs on clustered and unclustered storage. 
     $ClusterVHDXs = Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue    
     $LocalDriveLetters = (Get-Volume | Where-Object DriveLetter -ne 'C').DriveLetter    
     foreach ($driveLetter in $LocalDriveLetters)
@@ -930,13 +926,14 @@ function Get-HyperVMissingStorage
     }
   
     # Compare the list of all VHDXs to the list of VHDXs in use and create a list of VHDXs not in use by any VMs.
+    $AllVHDXs = [System.Collections.ArrayList]@()
     $AllVHDXs = ($ClusterVHDXs + $LocalVHDXs)
     $UnusedVHDXs = (Compare-Object -ReferenceObject $AllVMDiskRoots -DifferenceObject $AllVHDXs).InputObject
     if ($UnusedVHDXs)
     {
-        foreach ($UnusedVHDX in $UnusedVHDXs)
+        foreach ($unusedVHDX in $UnusedVHDXs)
         {
-            Write-Host $UnusedVHDX -ForegroundColor Yellow
+            Write-Host $unusedVHDX -ForegroundColor Yellow
         }
     }
     else
@@ -944,13 +941,14 @@ function Get-HyperVMissingStorage
         Write-Host 'No unused VHDXs found.' -ForegroundColor Green
     }
 
-    # Checks all VMs to verify they don't have Save as the Automatic Stop Action
     Write-Host `r
     Write-Host `r
-    [int]$SaveActionCheck = 0
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    # Checks all VMs to verify they don't have Save as the Automatic Stop Action.
+    [int]$SaveActionCheck = 0
     foreach ($vm in $VMs)
     {
         if ($vm.AutomaticStopAction -eq 'Save')
