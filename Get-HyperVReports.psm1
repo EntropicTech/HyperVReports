@@ -683,45 +683,15 @@ function Get-HyperVVMInfo
     $MenuChoice = Read-Host 'Menu Choice'
     Write-Host `r
 
-    # Filter for IPv4 addresses
-    [Regex]$IPv4 = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
-
     # Pull Cluster node data for script.
     Write-Host 'Gathering data from VMs... ' -ForegroundColor White
     Write-Host `r
-
-    if (Get-ClusterCheck)
-    {
-        $ClusterNodes = Get-ClusterNode -ErrorAction Stop
-        $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-        $DomainNodes = foreach ($node in $ClusterNodes)
-        {
-		    $node.Name + '.' + $Domain
-        }
-        
-        # Clear any old jobs out related to this script. 
-        Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
-
-        # Setup ScriptBlock for Invoke-Command.
-        $VMInfoPull = {  
-            Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
-        } 
-            
-        # Use psjobs to pull VM data from all cluster nodes at the same time.
-        Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
-
-        # Collect VM data from jobs and assign to $VMs
-        $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job  
-
-    }
-    else
-    {
-        $VMs = Get-VM | Select-Object ComputerName,VMName,ProcessorCount,MemoryStartup
-    }   
+    
+    $VMs = Get-HyperVVMs  
     
     # Collects information from VMs and creates $VMInfo variable with all VM info.  
     try
-    {           
+    {
         $results = foreach ($vm in $VMs)
         {
             if ($MenuChoice -eq 1)
@@ -735,6 +705,7 @@ function Get-HyperVVMInfo
             }
             elseif ($MenuChoice -eq 2)
             {
+                [Regex]$IPv4 = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
                 $VMNetworkAdapters = Get-VMNetworkAdapter -ComputerName $vm.Computername -VMName $vm.VMName
                 foreach ($adapter in $VMNetworkAdapters)
                 {
