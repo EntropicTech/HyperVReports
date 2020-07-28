@@ -394,18 +394,12 @@ Function Get-HyperVMaintenanceQC
     
     # Gather Cluster Variables
     $Cluster = Get-Cluster
-    $ClusterNodes = Get-ClusterNode
-    $Domain = (Get-WmiObject Win32_ComputerSystem).Domain
-    $DomainNodes = foreach ($node in $ClusterNodes)
-    {
-		$node.Name + '.' + $Domain
-    }
+    $DomainNodes = Get-DomainNodes
     
     # Variable Setup
     $TotalVMHostMemory = $False
     $TotalUsableVMHostMemory = $False
     $VirtMemory = $False
-    $NonClusteredVMs = $False
     
     Clear-Host
     Write-Host 'Calculating cluster memory usage...' -ForegroundColor Green -BackgroundColor Black
@@ -413,13 +407,13 @@ Function Get-HyperVMaintenanceQC
     # Building variable that has memory info for all of the cluster nodes.
     try
     {
-        $VMHostMemory = foreach ($node in $ClusterNodes)
+        $VMHostMemory = foreach ($node in $DomainNodes)
         {
             [PSCustomObject]@{
-                Name = $node.Name
-                TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $node.Name).TotalPhysicalMemory /1GB )
-                AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $node.Name).FreePhysicalMemory ) /1024 /1024 )
-                UsableMemory = [math]::Round( (Get-Counter -ComputerName $node.Name -Counter '\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory').Readings.Split(':')[1] / 1024 )
+                Name = $node.Split('.')[0]
+                TotalMemory = [math]::Round( (Get-WmiObject Win32_ComputerSystem -ComputerName $node).TotalPhysicalMemory /1GB )
+                AvailableMemory = [math]::Round(( (Get-WmiObject Win32_OperatingSystem -ComputerName $node).FreePhysicalMemory ) /1024 /1024 )
+                UsableMemory = [math]::Round( (Get-Counter -ComputerName $node -Counter '\Hyper-V Dynamic Memory Balancer(System Balancer)\Available Memory').Readings.Split(':')[1] / 1024 )
             }
         }
     }
@@ -439,7 +433,7 @@ Function Get-HyperVMaintenanceQC
     }
 
     # Calculate math for different variables.
-    $Nodecount = $ClusterNodes.Count
+    $Nodecount = $DomainNodes.Count
     $SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
     $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
     $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
@@ -492,7 +486,7 @@ Function Get-HyperVMaintenanceQC
     Write-Host '===========================================' -ForegroundColor DarkGray
 
     # Checks if nonclustered VMs exist and prints list.
-    if ($Null -eq $NonClusteredVMs)
+    if ($Null -eq $NonClusteredVMsSorted)
     {
         Write-Host '          All VMs are clustered.' -ForegroundColor Green
         Write-Host '===========================================' -ForegroundColor DarkGray
