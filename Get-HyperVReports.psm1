@@ -767,27 +767,22 @@ function Get-HyperVMissingStorage
     [CmdletBinding()]
     param()
     
-Get-AdminCheck
+    Get-AdminCheck
 
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for Disk Shadows...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    
-    # Pull the number of DiskShadows that are currently on the Hyp.    
-    $DiskShadowScript = $env:TEMP + '\Temp.dsh'
-    'list shadows all' | Set-Content $DiskShadowScript
-    $DiskShadows = diskshadow /s $DiskShadowScript
-    [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
-    if ($NoDiskShadowCheck -like '*No*')
+
+    $NumberOfDiskShadows = (Get-HyperVDiskShadows).Diskshadows
+
+    if ( $NumberOfDiskShadows -eq '0' )
     {
-        Write-Host 'No Disk Shadows found.' -ForegroundColor Green    
+        Write-Host 'No Disk Shadows found.' -ForegroundColor Green 
     }
     else
     {
-        [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
-        [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
-        Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow
+        Write-Host "$NumberOfDiskShadows Disk Shadows found!" -ForegroundColor Yellow 
     }
 
     Write-Host `r
@@ -796,19 +791,15 @@ Get-AdminCheck
     Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    # Checks all VMs to verify they don't have Save as the Automatic Stop Action.
-    [int]$SaveActionCheck = 0
-    foreach ($vm in $VMs)
+    $VMsWithSaveAction = (Get-HyperVVMStopAction).VMName
+
+    if ( $VMsWithSaveAction.Count -eq '0' )
     {
-        if ($vm.AutomaticStopAction -eq 'Save')
-        {
-            Write-Host "$($vm.VMName)" -ForegroundColor Yellow
-            $SaveActionCheck = $SaveActionCheck + 1
-        }    
+        Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor Green 
     }
-    if ($SaveActionCheck -eq 0)
+    else
     {
-        Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor Green
+        $VMsWithSaveAction | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
     }
 
     Write-Host `r
@@ -817,18 +808,11 @@ Get-AdminCheck
     Write-Host 'Checking for Checkpoints...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    # Checks the environment for any Checkpoints that might exist.
-    if (Get-ClusterCheck)
-    {
-        $VMSnapshots = Get-VMSnapshot -ComputerName (Get-DomainNodes) -VMName *
-    }
-    else
-    {
-        $VMSnapshots = Get-VMSnapshot -VMName *
-    }
+    $VMSnapshots = Get-HyperVVMCheckpoints
+
     if ($VMSnapshots)
     {
-        Write-Host $VMSnapshots.Name -ForegroundColor Yellow
+       $VMSnapshots | ForEach-Object { Write-Host "$($_.VMName) - $($_.CreationTime)" -ForegroundColor Yellow }
     }
     else
     {
@@ -841,44 +825,160 @@ Get-AdminCheck
     Write-Host 'Checking for AVHDXs...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    # Pull all VM disks and check to see if they are an avhdx.
-    [int]$AVHDXCheck = 0
-    $AllVMDisks = [System.Collections.ArrayList]@()
-    $AllVMDiskRoots = [System.Collections.ArrayList]@()
-    $VMs = Get-HyperVVMs
-    foreach ($vm in $VMs)
+    $VMAVHDXs = Get-HyperVVMAVHDX
+
+    if ($VMAVHDXs)
     {
-        $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
-        $AllVMDisks += $VMDisks
-        foreach ($disk in $VMDisks)
-        {
-            if ($disk.Path -like '*.vhdx')
-            {
-                $AllVMDiskRoots += $disk.Path.ToLower()
-            }
-            elseif ($disk.Path -like '*.avhdx')
-            {
-                Write-Host "$($vm.Name) - $($disk.Path)." -ForegroundColor Yellow 
-                $AVHDXCheck = $AVHDXCheck + 1
-                $Path = $disk.Path
-                while($Path = (Get-VHD -Path $Path).ParentPath)
-	            {
-		            $AllVMDiskRoots += $Path.ToLower()
-	            }
-            }     
-        }      
+       $VMSnapshots | ForEach-Object { Write-Host "$($_.VMName) - $($_.Path)" -ForegroundColor Yellow }
     }
-    if ($AVHDXCheck -eq '0')
+    else
     {
-        Write-Host 'No AVHDXs found.' -ForegroundColor Green
+        Write-Host 'No AVHDXs found.' -ForegroundColor Green      
     }
-    
+     
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for VHDXs that are not in use...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+   
+    Get-HyperVUnusedVHDX
+
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for hrl files that are larger than 5GB...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    Get-HyperVHRL
+
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for VHDX.temp files...'
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    Get-HyperVVHDXTemp
+}
+
+function Get-HyperVDiskShadows
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVDiskShadows pulls the disk shadows that are currently on the Hyper-V Storage.       
+    #>   
+    [CmdletBinding()]
+    param()
+   
+    # Pull the number of DiskShadows that are currently on the Hyp.    
+    $DiskShadowScript = $env:TEMP + '\Temp.dsh'
+    'list shadows all' | Set-Content $DiskShadowScript
+    $DiskShadows = diskshadow /s $DiskShadowScript
+    [String]$NoDiskShadowCheck = $DiskShadows | Select-String -SimpleMatch 'No shadow copies found in system.'
+    if ($NoDiskShadowCheck -like '*No*')
+    {
+        [String]$NumberOfDiskShadows = 0    
+    }
+    else
+    {
+        [String]$DiskShadowInfo = $DiskShadows | Select-String -SimpleMatch 'Number of shadow copies listed:'
+        [String]$NumberOfDiskShadows = $DiskShadowInfo.Split('')[5]
+    }
     
+    [PSCustomObject]@{
+            DiskShadows = $NumberOfDiskShadows
+    }
+}
+
+function Get-HyperVVMStopAction
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVVMStopAction checks all VMs for their Automatic Stop Action setting.       
+    #>   
+    [CmdletBinding()]
+    param()
+
+    # Checks all VMs to verify they don't have Save as the Automatic Stop Action.
+    [int]$SaveActionCheck = 0
+    foreach ($vm in $VMs)
+    {
+        if ($vm.AutomaticStopAction -eq 'Save')
+        {
+            $SaveActionCheck = $SaveActionCheck + 1
+            [PSCustomObject]@{
+                VMName = $vm.VMName
+                StopAction = $vm.AutomaticStopAction
+            }
+        }    
+    }
+}
+
+function Get-HyperVVMCheckpoints
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVVMCheckpoints checks all VMs for checkpoints.       
+    #>   
+    [CmdletBinding()]
+    param()
+
+    # Checks the environment for any Checkpoints that might exist.
+    if (Get-ClusterCheck)
+    {
+        $VMSnapshots = Get-VMSnapshot -ComputerName (Get-DomainNodes) -VMName *
+    }
+    else
+    {
+        $VMSnapshots = Get-VMSnapshot -VMName *
+    }
+
+    $VMSnapshots
+}
+
+function Get-HyperVVMAVHDX
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVVMAVHDX checks all VMs for AVHDXs.       
+    #>   
+    [CmdletBinding()]
+    param()
+
+    # Pull all VM disks and check to see if they are an avhdx.
+    $VMs = Get-HyperVVMs
+    foreach ($vm in $VMs)
+    {
+        $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
+        foreach ($disk in $VMDisks)
+        {
+            if ($disk.Path -like '*.avhdx')
+            {
+                [PSCustomObject]@{
+                    VMName = $vm.Name
+                    Path = $disk.Path
+                }                 
+            }     
+        }      
+    }
+    
+}
+
+function Get-HyperVUnusedVHDX
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVUnusedVHDX checks cluster and local storage for VHDXs not in use by any VMs.       
+    #>   
+    [CmdletBinding()]
+    param()    
+    
+                $Path = $disk.Path
+                while($Path = (Get-VHD -Path $Path).ParentPath)
+	            {
+		            $AllVMDiskRoots += $Path.ToLower()
+	            }
+
     # Collect all VHDXs on clustered and unclustered storage. 
     $ClusterVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName    
     $LocalDriveLetters = (Get-Volume).DriveLetter
@@ -925,12 +1025,16 @@ Get-AdminCheck
     {
         Write-Host 'No unused VHDXs found.' -ForegroundColor Green
     }
+}
 
-    Write-Host `r
-    Write-Host `r
-    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for hrl files that are larger than 5GB...'
-    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+function Get-HyperVHRL
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVHRL checks cluster and local storage for HRL files larger than 5GB.       
+    #>   
+    [CmdletBinding()]
+    param() 
 
     # Collect all HRLs on clustered and unclustered storage. 
     $ClusterHRLs = Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.hrl' -Recurse -ErrorAction SilentlyContinue   
@@ -971,12 +1075,16 @@ Get-AdminCheck
     {
         Write-Host 'All hrl files smaller than 5GBs.' -ForegroundColor Green
     }
+}
 
-    Write-Host `r
-    Write-Host `r
-    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VHDX.temp files...'
-    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+function Get-HyperVVHDXTemp
+{
+    <#
+        .SYNOPSIS
+            Get-HyperVVHDXTemp checks cluster and local storage for VHDX.temp files larger than 5GB.       
+    #>   
+    [CmdletBinding()]
+    param() 
 
     # Collect all VHDX.tmp files on clustered and unclustered storage. 
     $ClusterTmpVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue).FullName   
