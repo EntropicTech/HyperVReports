@@ -970,14 +970,7 @@ function Get-HyperVUnusedVHDX
         .SYNOPSIS
             Get-HyperVUnusedVHDX checks cluster and local storage for VHDXs not in use by any VMs.       
     #>   
-    [CmdletBinding()]
-    param()    
-    
-                $Path = $disk.Path
-                while($Path = (Get-VHD -Path $Path).ParentPath)
-	            {
-		            $AllVMDiskRoots += $Path.ToLower()
-	            }
+  
 
     # Collect all VHDXs on clustered and unclustered storage. 
     $ClusterVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName    
@@ -985,6 +978,7 @@ function Get-HyperVUnusedVHDX
     $LocalVHDXs = [System.Collections.ArrayList]@()
     $LocalVHDXDataPull = [System.Collections.ArrayList]@()   
     $LocalVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
+
     {
         (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*' ).FullName 
     }
@@ -1005,6 +999,29 @@ function Get-HyperVUnusedVHDX
         $AllVHDXs = $ClusterVHDXs.ToLower()
     }
 
+    # Find the roof VHDX of any VMs with an VHDX.
+    $AllVMDiskRoots = [System.Collections.ArrayList]@()
+    $VMs = Get-HyperVVMs
+    foreach ($vm in $VMs)
+    {
+        $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
+        foreach ($disk in $VMDisks)
+        {
+            if ($disk.Path -like '*.vhdx')
+            {
+                $AllVMDiskRoots += $disk.Path.ToLower()
+            }
+            elseif ($disk.Path -like '*.avhdx')
+            {
+	            $Path = $disk.Path
+                while($Path = (Get-VHD -Path $Path).ParentPath)
+	            {
+		            $AllVMDiskRoots += $Path.ToLower()
+	            }
+            }     
+        }
+    }      
+        
     # Compare the list of all VHDXs to the list of VHDXs in use and create a list of VHDXs not in use by any VMs.
     $UnusedVHDXs = foreach ($vhdx in $AllVHDXs)
     {
@@ -1012,8 +1029,8 @@ function Get-HyperVUnusedVHDX
         {
             $vhdx    
         }
-    }   
- 
+    }
+       
     if ($UnusedVHDXs)
     {
         foreach ($unusedVHDX in $UnusedVHDXs)
