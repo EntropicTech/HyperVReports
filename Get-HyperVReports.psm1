@@ -113,19 +113,7 @@ function Get-HyperVVMs
 
     if (Get-ClusterCheck)
     {
-        $DomainNodes = Get-DomainNodes
-
-        # Clear any old jobs out related to this script. 
-        Get-Job | Where-Object Command -like *Get-VM* | Remove-Job
-
-        # Setup ScriptBlock for Invoke-Command.
-        $VMInfoPull = { Get-VM } 
-            
-        # Use psjobs to pull VM data from all cluster nodes at the same time.
-        Invoke-Command -ComputerName $DomainNodes -ScriptBlock $VMInfoPull -AsJob | Wait-Job | Out-Null
-
-        # Collect VM data from jobs and assign to $VMs
-        $VMs = Get-Job | Where-Object Command -like *Get-VM* | Receive-Job
+        $VMs = Get-VM -ComputerName (Get-DomainNodes)
     }
     else
     {
