@@ -829,7 +829,7 @@ function Get-HyperVMissingStorage
 
     if ($VMAVHDXs)
     {
-       $VMSnapshots | ForEach-Object { Write-Host "$($_.VMName) - $($_.Path)" -ForegroundColor Yellow }
+       $VMAVHDXs | ForEach-Object { Write-Host "$($_.VMName) - $($_.Path)" -ForegroundColor Yellow }
     }
     else
     {
@@ -842,7 +842,19 @@ function Get-HyperVMissingStorage
     Write-Host 'Checking for VHDXs that are not in use...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
    
-    Get-HyperVUnusedVHDX
+    $UnusedVHDX = Get-HyperVUnusedVHDX  
+    
+    if ($UnusedVHDX)
+    {
+        foreach ($unusedVHDX in $UnusedVHDXs)
+        {
+            Write-Host $unusedVHDX -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        Write-Host 'No unused VHDXs found.' -ForegroundColor Green
+    }
 
     Write-Host `r
     Write-Host `r
@@ -850,15 +862,39 @@ function Get-HyperVMissingStorage
     Write-Host 'Checking for hrl files that are larger than 5GB...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    Get-HyperVHRL
+    $HRLs = Get-HyperVHRL
+
+    if ($HRLs)
+    {
+        foreach ($hrl in $HRLs)
+        {
+            Write-Host $hrl.FullName -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        Write-Host 'All hrl files smaller than 5GBs.' -ForegroundColor Green
+    }
 
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VHDX.temp files...'
+    Write-Host 'Checking for VHDX.tmp files...'
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    Get-HyperVVHDXTemp
+    $TmpVHDXs = Get-HyperVVHDXTemp
+
+    if ($TmpVHDXs)
+    {
+        foreach ($tmpVHDX in $TmpVHDXs)
+        {
+            Write-Host $tmpVHDX.vhdxtmp -ForegroundColor Yellow
+        }
+    }
+    else
+    {        
+        Write-Host 'No VHDX.tmp files found.' -ForegroundColor Green
+    }
 }
 
 function Get-HyperVDiskShadows
@@ -971,35 +1007,7 @@ function Get-HyperVUnusedVHDX
             Get-HyperVUnusedVHDX checks cluster and local storage for VHDXs not in use by any VMs.       
     #>   
   
-
-    # Collect all VHDXs on clustered and unclustered storage. 
-    $ClusterVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName    
-    $LocalDriveLetters = (Get-Volume).DriveLetter
-    $LocalVHDXs = [System.Collections.ArrayList]@()
-    $LocalVHDXDataPull = [System.Collections.ArrayList]@()   
-    $LocalVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
-
-    {
-        (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*' ).FullName 
-    }
-    $LocalVHDXs = $LocalVHDXDataPull.Where({$_ -ne $null})
-      
-    # Determine if there is cluster storage, local storage or both and set variable accordingly.
-    $AllVHDXs = [System.Collections.ArrayList]@()
-    if ($LocalVHDXs -and $ClusterVHDXs)
-    {
-        $AllVHDXs = ($ClusterVHDXs.ToLower() + $LocalVHDXs.ToLower())
-    }
-    elseif ($LocalVHDXs)
-    {
-        $AllVHDXs = $LocalVHDXs.ToLower()
-    }
-    elseif ($ClusterVHDXs)
-    {
-        $AllVHDXs = $ClusterVHDXs.ToLower()
-    }
-
-    # Find the roof VHDX of any VMs with an VHDX.
+    # Find the root VHDX of any VMs with a VHDX.
     $AllVMDiskRoots = [System.Collections.ArrayList]@()
     $VMs = Get-HyperVVMs
     foreach ($vm in $VMs)
@@ -1020,29 +1028,33 @@ function Get-HyperVUnusedVHDX
 	            }
             }     
         }
-    }      
+    }
+
+    # Collect all VHDXs on clustered and unclustered storage. 
+    #$ClusterVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName    
+    $LocalDriveLetters = (Get-Volume).DriveLetter  
+    $LocalVHDXDataPull = [System.Collections.ArrayList]@() 
+    $LocalVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
+    {
+        (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue ).FullName 
+    }  
+    
+    $AllVHDXs = [System.Collections.ArrayList]@()
+    $AllVHDXs = $LocalVHDXDataPull.Where({$_ -ne $null})
+    $AllVHDXsLower = $AllVHDXs        
         
-    # Compare the list of all VHDXs to the list of VHDXs in use and create a list of VHDXs not in use by any VMs.
+    # Compare the list of all VHDXs to the list of VHDXs in use and then create a list of VHDXs not in use by any VMs.
     $UnusedVHDXs = foreach ($vhdx in $AllVHDXs)
     {
-        if ( -not ( $AllVMDiskRoots.Contains($vhdx) ))
+        if ( -not ( $AllVMDiskRoots.Contains($vhdx.ToLower()) ))
         {
-            $vhdx    
+            $vhdx
         }
     }
-       
-    if ($UnusedVHDXs)
-    {
-        foreach ($unusedVHDX in $UnusedVHDXs)
-        {
-            Write-Host $unusedVHDX -ForegroundColor Yellow
-        }
-    }
-    else
-    {
-        Write-Host 'No unused VHDXs found.' -ForegroundColor Green
-    }
+    
+    $UnusedVHDXs
 }
+
 
 function Get-HyperVHRL
 {
@@ -1053,44 +1065,26 @@ function Get-HyperVHRL
     [CmdletBinding()]
     param() 
 
-    # Collect all HRLs on clustered and unclustered storage. 
-    $ClusterHRLs = Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.hrl' -Recurse -ErrorAction SilentlyContinue   
+    # Collect all HRLs on clustered and unclustered storage.   
     $LocalHRLs = [System.Collections.ArrayList]@()
-    $LocalHRLDataPull = [System.Collections.ArrayList]@()   
+    $LocalHRLDataPull = [System.Collections.ArrayList]@()
+    $AllHRLs = [System.Collections.ArrayList]@()   
     $LocalHRLDataPull += foreach ($driveLetter in $LocalDriveLetters)
     {
-        Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.hrl' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*'
+        Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.hrl' -Recurse -ErrorAction SilentlyContinue
     }
-    $LocalHRLs = $LocalHRLDataPull.Where({$_ -ne $null})
 
-    # Determine if there is cluster storage, local storage or both and set variable accordingly.
-    [int]$HRLCheck = 0
-    $AllHRLs = [System.Collections.ArrayList]@()
-    if ($LocalHRLs -and $ClusterHRLs)
-    {
-        $AllHRLs = ($ClusterHRLs + $LocalHRLs)
-    }
-    elseif ($LocalHRLs)
-    {
-        $AllHRLs = $LocalHRLs
-    }
-    elseif ($ClusterHRLs)
-    {
-        $AllHRLs = $ClusterHRLs
-    }
+    $AllHRLs = $LocalHRLDataPull.Where({$_ -ne $null})
 
     # Check to see if any hrl files are larger than 5GB.
     foreach ($hrl in $AllHRLs)
     {
         if ($hrl.Length -gt 5368706371)
         {
-            Write-Host $hrl.FullName -ForegroundColor Yellow
-            $HRLCheck = $HRLCheck + 1
+            [PSCustomObject]@{
+                FullName = $hrl.FullName
+            }
         }
-    }
-    if ($HRLCheck -eq '0')
-    {
-        Write-Host 'All hrl files smaller than 5GBs.' -ForegroundColor Green
     }
 }
 
@@ -1100,43 +1094,25 @@ function Get-HyperVVHDXTemp
         .SYNOPSIS
             Get-HyperVVHDXTemp checks cluster and local storage for VHDX.temp files larger than 5GB.       
     #>   
-    [CmdletBinding()]
-    param() 
 
-    # Collect all VHDX.tmp files on clustered and unclustered storage. 
-    $ClusterTmpVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue).FullName   
+    # Collect all VHDX.tmp files on clustered and unclustered storage.  
     $LocalTmpVHDXs = [System.Collections.ArrayList]@()
     $LocalTmpVHDXDataPull = [System.Collections.ArrayList]@()   
     $LocalTmpVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
     {
-        (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -NotLike 'C:\ClusterStorage*').FullName
+        (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue ).FullName
     }
-    $LocalTmpVHDXs = $LocalTmpVHDXDataPull.Where({$_ -ne $null})
-
+    
     # Determine if there is cluster storage, local storage or both and set variable accordingly.
     $AllTmpVHDXs = [System.Collections.ArrayList]@()
-    if ($LocalTmpVHDXs -and $ClusterTmpVHDXs)
-    {
-        $AllTmpVHDXs = ($ClusterTmpVHDXs + $LocalTmpVHDXs)
-    }
-    elseif ($LocalTmpVHDXs)
-    {
-        $AllTmpVHDXs = $LocalTmpVHDXs
-    }
-    elseif ($ClusterTmpVHDXs)
-    {
-        $AllTmpVHDXs = $ClusterTmpVHDXs
-    }
-
+    $AllTmpVHDXs = $LocalTmpVHDXDataPull.Where({$_ -ne $null})
     if ($AllTmpVHDXs)
     {
         foreach ($tmpVHDX in $AllTmpVHDXs)
         {
-            Write-Host $tmpVHDX -ForegroundColor Yellow
+            [PSCustomObject]@{
+                'VHDXtmp' = $tmpVHDX 
+            }
         }
-    }
-    else
-    {
-        Write-Host 'No VHDX.tmp files found.' -ForegroundColor Green
     }
 }
