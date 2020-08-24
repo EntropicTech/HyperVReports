@@ -882,8 +882,7 @@ function Get-HyperVMissingStorage
             }
         }
 
-        # Collect all VHDXs on clustered and unclustered storage. 
-        #$ClusterVHDXs = (Get-ChildItem -Path 'C:\ClusterStorage\' -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue).FullName    
+        # Collect all VHDXs on clustered and unclustered storage.   
         $LocalDriveLetters = (Get-Volume).DriveLetter  
         $LocalVHDXDataPull = [System.Collections.ArrayList]@() 
         $LocalVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
@@ -892,19 +891,19 @@ function Get-HyperVMissingStorage
         }  
     
         $AllVHDXs = [System.Collections.ArrayList]@()
-        $AllVHDXs = $LocalVHDXDataPull.Where({$_ -ne $null})
-        $AllVHDXsLower = $AllVHDXs        
+        $AllVHDXs = $LocalVHDXDataPull.Where({$_ -ne $null})        
         
         # Compare the list of all VHDXs to the list of VHDXs in use and then create a list of VHDXs not in use by any VMs.
-        $UnusedVHDXs = foreach ($vhdx in $AllVHDXs)
+        $UnusedVHDX += foreach ($vhdx in $AllVHDXs)
         {
             if ( -not ( $AllVMDiskRoots.Contains($vhdx.ToLower()) ))
             {
-                $vhdx
+                [PSCustomObject]@{
+                    UnusedVHDX = $vhdx
+                }
             }
-        }
-    
-        $UnusedVHDXs    
+        }   
+        $UnusedVHDX   
     }
 
     $GetHyperVHRL = {
@@ -958,7 +957,7 @@ function Get-HyperVMissingStorage
         }    
     }
 
-    # Clear any old jobs out related to this script. 
+    # Clear any old jobs out. 
     Get-Job | Remove-Job    
          
     # Use jobs to pull event logs from all cluster nodes at the same time.
@@ -972,7 +971,7 @@ function Get-HyperVMissingStorage
 
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for Disk Shadows...'
+    Write-Host 'Checking for Disk Shadows...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect diskshadows from the job and assign to $HyperVDiskShadows.
@@ -992,7 +991,7 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...'
+    Write-Host 'Checking for VMs with their Automatic Stop Action set to Save...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect VM Stop Action from the job and assign to $HyperVSaveAction.
@@ -1012,7 +1011,7 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for Checkpoints...'
+    Write-Host 'Checking for Checkpoints...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect checkpoints from the job and assign to $HyperVDiskShadows.
@@ -1032,7 +1031,7 @@ function Get-HyperVMissingStorage
     Write-Host `r 
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for AVHDXs...' -ForegroundColor White
+    Write-Host 'Checking for AVHDXs...' -ForegroundColor White 
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect AVHDXs from the job and assign to $HyperVVMAVHDX.
@@ -1052,15 +1051,15 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VHDXs that are not in use...'
+    Write-Host 'Checking for VHDXs that are not in use...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect unused vHDXs from the job and assign to $HyperVUnusedVHDX.
     $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *AllVMDiskRoots* | Wait-Job | Receive-Job  
    
-    $UnusedVHDX = $HyperVUnusedVHDX  
+    $UnusedVHDXs = ($HyperVUnusedVHDX).UnusedVHDX  
     
-    if ($UnusedVHDX)
+    if ($UnusedVHDXs)
     {
         foreach ($unusedVHDX in $UnusedVHDXs)
         {
@@ -1075,13 +1074,13 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for hrl files that are larger than 5GB...'
+    Write-Host 'Checking for hrl files that are larger than 5GB...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect HRL files from the job and assign to $HyperVHRL.
     $HyperVHRL = Get-Job | Where-Object Command -like *LocalHRLs* | Wait-Job | Receive-Job  
 
-    $HRLs = Get-HyperVHRL
+    $HRLs = $HyperVHRL
 
     if ($HRLs)
     {
@@ -1098,7 +1097,7 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VHDX.tmp files...'
+    Write-Host 'Checking for VHDX.tmp files...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect VHDX.tmp from the job and assign to $HyperVVHDXTmp
