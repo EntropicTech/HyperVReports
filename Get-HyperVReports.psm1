@@ -909,7 +909,6 @@ function Get-HyperVMissingStorage
     $GetHyperVHRL = {
     
         # Collect all HRLs on clustered and unclustered storage.   
-        $LocalHRLs = [System.Collections.ArrayList]@()
         $LocalHRLDataPull = [System.Collections.ArrayList]@()
         $AllHRLs = [System.Collections.ArrayList]@()
         $LocalDriveLetters = (Get-Volume).DriveLetter   
@@ -935,7 +934,6 @@ function Get-HyperVMissingStorage
     $GetHyperVVHDXTemp = {
     
         # Collect all VHDX.tmp files on clustered and unclustered storage.  
-        $LocalTmpVHDXs = [System.Collections.ArrayList]@()
         $LocalTmpVHDXDataPull = [System.Collections.ArrayList]@()
         $LocalDriveLetters = (Get-Volume).DriveLetter   
         $LocalTmpVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
