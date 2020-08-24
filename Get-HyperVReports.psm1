@@ -770,9 +770,10 @@ function Get-HyperVMissingStorage
     
     Get-AdminCheck
 
+    # Script to pull the number of DiskShadows that are currently on the Hyp.
     $GetHyperVDiskShadows = {
-
-        # Pull the number of DiskShadows that are currently on the Hyp.    
+        
+        # HyperVDiskShadows    
         $DiskShadowScript = $env:TEMP + '\Temp.dsh'
         'list shadows all' | Set-Content $DiskShadowScript
         $DiskShadows = diskshadow /s $DiskShadowScript
@@ -792,9 +793,10 @@ function Get-HyperVMissingStorage
         }    
     }
 
+    # Script to check all VMs to verify they don't have Save as the Automatic Stop Action.
     $GetHyperVStopAction = {
 
-        # Checks all VMs to verify they don't have Save as the Automatic Stop Action.
+        # HyperVStopAction
         [int]$SaveActionCheck = 0
         foreach ($vm in $VMs)
         {
@@ -809,9 +811,10 @@ function Get-HyperVMissingStorage
         }
     }
 
+    # Script to check the environment for any Checkpoints that exist.
     $GetHyperVVMCheckpoints = {
-    
-        # Checks the environment for any Checkpoints that might exist.
+
+        # HyperVCheckpoints
         if (Get-ClusterNode)
         {
             Get-VMSnapshot -ComputerName (Get-ClusterNode) -VMName *
@@ -822,10 +825,10 @@ function Get-HyperVMissingStorage
         }  
     }
 
+    # Script to pull all VM disks and check to see if they are an avhdx.
     $GetHyperVVMAVHDX = {
     
         # GetHyperVVMAVHDX
-        # Pull all VM disks and check to see if they are an avhdx.
         if (Get-ClusterNode)
         {
             $VMs = Get-VM -ComputerName (Get-ClusterNode)    
@@ -851,8 +854,10 @@ function Get-HyperVMissingStorage
         }    
     }
 
+    # Script to pull all VM disks and check to see if they are not being used.
     $GetHyperVUnusedVHDXs = {
-    
+        
+        # HyperVUnusedVHDX
         $AllVMDiskRoots = [System.Collections.ArrayList]@()
         if (Get-ClusterNode)
         {
@@ -894,7 +899,7 @@ function Get-HyperVMissingStorage
         $AllVHDXs = $LocalVHDXDataPull.Where({$_ -ne $null})        
         
         # Compare the list of all VHDXs to the list of VHDXs in use and then create a list of VHDXs not in use by any VMs.
-        $UnusedVHDX += foreach ($vhdx in $AllVHDXs)
+        foreach ($vhdx in $AllVHDXs)
         {
             if ( -not ( $AllVMDiskRoots.Contains($vhdx.ToLower()) ))
             {
@@ -902,13 +907,13 @@ function Get-HyperVMissingStorage
                     UnusedVHDX = $vhdx
                 }
             }
-        }   
-        $UnusedVHDX   
+        }     
     }
 
+    # Script to collect all HRLs on clustered and unclustered storage. 
     $GetHyperVHRL = {
-    
-        # Collect all HRLs on clustered and unclustered storage.   
+      
+        # HyperVHRL
         $LocalHRLDataPull = [System.Collections.ArrayList]@()
         $AllHRLs = [System.Collections.ArrayList]@()
         $LocalDriveLetters = (Get-Volume).DriveLetter   
@@ -931,9 +936,10 @@ function Get-HyperVMissingStorage
         }    
     }
 
+    # Collect all VHDX.tmp files on clustered and unclustered storage. 
     $GetHyperVVHDXTemp = {
-    
-        # Collect all VHDX.tmp files on clustered and unclustered storage.  
+     
+        # HyperVVHDXTmp
         $LocalTmpVHDXDataPull = [System.Collections.ArrayList]@()
         $LocalDriveLetters = (Get-Volume).DriveLetter   
         $LocalTmpVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
@@ -941,7 +947,7 @@ function Get-HyperVMissingStorage
             (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue ).FullName
         }
     
-        # Determine if there is cluster storage, local storage or both and set variable accordingly.
+        # Clean the $null values out of the data pull and output the clean data as a PSObject.
         $AllTmpVHDXs = [System.Collections.ArrayList]@()
         $AllTmpVHDXs = $LocalTmpVHDXDataPull.Where({$_ -ne $null})
         if ($AllTmpVHDXs)
@@ -958,7 +964,7 @@ function Get-HyperVMissingStorage
     # Clear any old jobs out. 
     Get-Job | Remove-Job    
          
-    # Use jobs to pull event logs from all cluster nodes at the same time.
+    # Use PSJobs to launch all of the scripts at the same time.
     Start-Job -ScriptBlock $GetHyperVDiskShadows | Out-Null
     Start-Job -ScriptBlock $GetHyperVStopAction | Out-Null
     Start-Job -ScriptBlock $GetHyperVVMCheckpoints | Out-Null
@@ -973,7 +979,7 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect diskshadows from the job and assign to $HyperVDiskShadows.
-    $HyperVDiskShadows = Get-Job | Where-Object Command -like *DiskShadowScript* | Wait-Job | Receive-Job  
+    $HyperVDiskShadows = Get-Job | Where-Object Command -like *HyperVDiskShadows* | Wait-Job | Receive-Job  
 
     $NumberOfDiskShadows = ($HyperVDiskShadows).Diskshadows
 
@@ -993,7 +999,7 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect VM Stop Action from the job and assign to $HyperVSaveAction.
-    $HyperVStopAction = Get-Job | Where-Object Command -like *SaveActionCheck* | Wait-Job | Receive-Job  
+    $HyperVStopAction = Get-Job | Where-Object Command -like *HyperVStopAction* | Wait-Job | Receive-Job  
 
     $VMsWithStopAction = ($HyperVStopAction).VMName
 
@@ -1013,10 +1019,9 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect checkpoints from the job and assign to $HyperVDiskShadows.
-    $HyperVCheckpoints = Get-Job | Where-Object Command -like *Snapshot* | Wait-Job | Receive-Job  
+    $HyperVCheckpoints = Get-Job | Where-Object Command -like *HyperVCheckpoints* | Wait-Job | Receive-Job  
 
     $VMSnapshots = $HyperVCheckpoints
-
     if ($VMSnapshots)
     {
        $VMSnapshots | ForEach-Object { Write-Host "$($_.VMName) - $($_.CreationTime)" -ForegroundColor Yellow }
@@ -1036,7 +1041,6 @@ function Get-HyperVMissingStorage
     $HyperVVMAVHDX = Get-Job | Where-Object Command -like *GetHyperVVMAVHDX* | Wait-Job | Receive-Job  
 
     $VMAVHDXs = $HyperVVMAVHDX
-
     if ($VMAVHDXs)
     {
        $VMAVHDXs | ForEach-Object { Write-Host "$($_.VMName) - $($_.Path)" -ForegroundColor Yellow }
@@ -1053,7 +1057,7 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect unused vHDXs from the job and assign to $HyperVUnusedVHDX.
-    $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *AllVMDiskRoots* | Wait-Job | Receive-Job  
+    $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *HyperVUnusedVHDX* | Wait-Job | Receive-Job  
    
     $UnusedVHDXs = ($HyperVUnusedVHDX).UnusedVHDX  
     
@@ -1076,7 +1080,7 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect HRL files from the job and assign to $HyperVHRL.
-    $HyperVHRL = Get-Job | Where-Object Command -like *LocalHRLs* | Wait-Job | Receive-Job  
+    $HyperVHRL = Get-Job | Where-Object Command -like *HyperVHRL* | Wait-Job | Receive-Job  
 
     $HRLs = $HyperVHRL
 
@@ -1099,7 +1103,7 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect VHDX.tmp from the job and assign to $HyperVVHDXTmp
-    $HyperVVHDXTmp = Get-Job | Where-Object Command -like *LocalTmpVHDXs* | Wait-Job | Receive-Job  
+    $HyperVVHDXTmp = Get-Job | Where-Object Command -like *HyperVVHDXTmp* | Wait-Job | Receive-Job  
 
     $TmpVHDXs = $HyperVVHDXTmp
 
