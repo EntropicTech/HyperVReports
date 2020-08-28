@@ -384,11 +384,6 @@ Function Get-HyperVMaintenanceQC
     $Cluster = Get-Cluster
     $DomainNodes = Get-DomainNodes
     
-    # Variable Setup
-    $TotalVMHostMemory = $False
-    $TotalUsableVMHostMemory = $False
-    $VirtMemory = $False
-    
     Clear-Host
     Write-Host 'Calculating cluster memory usage...' -ForegroundColor Green -BackgroundColor Black
 
@@ -426,7 +421,8 @@ Function Get-HyperVMaintenanceQC
     $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
     $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
     $UsableMemoryAfterFailure = ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
-    $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure          
+    $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure
+    $NPlus = [math]::Round($UsableMemoryAfterFailure / $SingleNodeMemory)
        
     # Sort Nonclustered VMs by their state for readability.
     $NonClusteredVMsSorted = Get-HyperVVMs | Where-Object IsClustered -EQ $False | Sort-Object State
@@ -436,20 +432,20 @@ Function Get-HyperVMaintenanceQC
     if ($Nodecount -eq '1')
     {
         Write-Host '===========================================' -ForegroundColor DarkGray
-        Write-Host "    $Cluster is a single node cluster."
+        Write-Host "    $Cluster is a single node cluster"
         Write-Host '===========================================' -ForegroundColor DarkGray
     }
     else
     {
         Write-Host '===========================================' -ForegroundColor DarkGray
-        Write-Host "         $Cluster has $Nodecount nodes."
+        Write-Host "       $Cluster has $Nodecount nodes"
         Write-Host '===========================================' -ForegroundColor DarkGray
     }
 
     # Print Node Memory Report                      
-    Write-Host "  $TotalVMHostMemory GB - Physical memory of cluster."   
-    Write-Host "  $SingleNodeMemory GB - Physical memory of each node."    
-    Write-Host "  $UsableMemoryAfterFailure GB - Useable memory with 1 failure."    
+    Write-Host " $TotalVMHostMemory GB - Physical memory of cluster"   
+    Write-Host " $SingleNodeMemory GB - Physical memory of each node"    
+    Write-Host " $UsableMemoryAfterFailure GB - Total usable memory in cluster"    
     Write-Host '===========================================' -ForegroundColor DarkGray
 
     # Prints error if all nodes don't have the same amount of memory.    
@@ -464,11 +460,11 @@ Function Get-HyperVMaintenanceQC
     {       
         Write-host ' Cluster would NOT survive single failure!' -ForegroundColor Red
         Write-Host '===========================================' -ForegroundColor DarkGray       
-        Write-Host " More than $HAMemory GB of memory needed to be HA."
+        Write-Host " More than $HAMemory GB of memory needed to be HA"
     }
     else
     {    
-        Write-Host '  Cluster would survive single failure.' -ForegroundColor Green
+        Write-Host "         Cluster is currently N+$Nplus" -ForegroundColor Green
     }
 
     Write-Host '===========================================' -ForegroundColor DarkGray
@@ -476,19 +472,19 @@ Function Get-HyperVMaintenanceQC
     # Checks if nonclustered VMs exist and prints list.
     if ($Null -eq $NonClusteredVMsSorted)
     {
-        Write-Host '          All VMs are clustered.' -ForegroundColor Green
+        Write-Host '          All VMs are clustered' -ForegroundColor Green
         Write-Host '===========================================' -ForegroundColor DarkGray
     }
     else
     {
-        Write-Host '          VMs NOT in cluster.' -ForegroundColor Yellow
+        Write-Host '           Unclustered VMs Found!' -ForegroundColor Yellow
         Write-Host '===========================================' -ForegroundColor DarkGray
     }
     
     # Prints nonclustered VMs.
     foreach ($VM in $NonClusteredVMsSorted)
     {
-        $VMOutput = ' ' + $VM.ComputerName + ' - ' + $VM.State + ' - ' + $VM.Name
+        $VMOutput = ' ' + ($VM.ComputerName).Split('.')[0] + ' - ' + $VM.State + ' - ' + $VM.Name
         Write-Host $VMOutput -ForegroundColor Yellow
     }
 }
