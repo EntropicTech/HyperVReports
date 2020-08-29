@@ -531,7 +531,7 @@ function Get-HyperVStorageReport
                 $ClusterPath = $csv.AccessPaths[0].TrimEnd('\')                
                 $FriendlyPath = $ClusterPath.Split('\')[2]
                 $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
-                $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name[0]
+                $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name
                 $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
 
                 if ($OSVersion -eq 10)
