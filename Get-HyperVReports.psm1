@@ -438,14 +438,14 @@ Function Get-HyperVMaintenanceQC
     else
     {
         Write-Host '===========================================' -ForegroundColor DarkGray
-        Write-Host "       $Cluster has $Nodecount nodes"
+        Write-Host "        $Cluster - $Nodecount Nodes"
         Write-Host '===========================================' -ForegroundColor DarkGray
     }
 
     # Print Node Memory Report                      
     Write-Host " $TotalVMHostMemory GB - Physical memory of cluster"   
     Write-Host " $SingleNodeMemory GB - Physical memory of each node"    
-    Write-Host " $UsableMemoryAfterFailure GB - Total usable memory in cluster"    
+    Write-Host " $UsableMemoryAfterFailure GB - Total usable memory of cluster"    
     Write-Host '===========================================' -ForegroundColor DarkGray
 
     # Prints error if all nodes don't have the same amount of memory.    
@@ -464,7 +464,7 @@ Function Get-HyperVMaintenanceQC
     }
     else
     {    
-        Write-Host "         Cluster is currently N+$Nplus" -ForegroundColor Green
+        Write-Host "             Cluster is N+$Nplus" -ForegroundColor Green
     }
 
     Write-Host '===========================================' -ForegroundColor DarkGray
@@ -507,7 +507,7 @@ function Get-HyperVStorageReport
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host '[1]  Cluster Storage - Full report'                     -ForegroundColor White
     Write-Host '[2]  Cluster Storage - Utilization'                     -ForegroundColor White
-    Write-Host '[3]  Cluster Storage - IO - 2016/2019 Only'             -ForegroundColor White
+    Write-Host '[3]  Cluster Storage - IO (2016/2019 Only)'             -ForegroundColor White
     Write-Host '[4]  Local Storage - Utilization'                       -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host 'Menu Choice'                               
@@ -531,7 +531,7 @@ function Get-HyperVStorageReport
                 $ClusterPath = $csv.AccessPaths[0].TrimEnd('\')                
                 $FriendlyPath = $ClusterPath.Split('\')[2]
                 $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
-                $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name
+                $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name | Get-Unique
                 $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
 
                 if ($OSVersion -eq 10)
@@ -839,7 +839,7 @@ function Get-HyperVMissingStorage
             $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
             foreach ($disk in $VMDisks)
             {
-                if ($disk.Path -like '*.avhdx')
+                if ($disk.Path -like '*.avhdx' -or $disk.Path -like '*.avhd' )
                 {
                     [PSCustomObject]@{
                         VMName = $vm.Name
@@ -868,11 +868,11 @@ function Get-HyperVMissingStorage
             $VMDisks = Get-VMHardDiskDrive -ComputerName $vm.Computername -VMName $vm.VMName | Get-VHD -ComputerName $vm.Computername
             foreach ($disk in $VMDisks)
             {
-                if ($disk.Path -like '*.vhdx')
+                if ($disk.Path -like '*.vhdx' -or $disk.Path -like '*.vhd')
                 {
                     $AllVMDiskRoots += $disk.Path.ToLower()
                 }
-                elseif ($disk.Path -like '*.avhdx')
+                elseif ($disk.Path -like '*.avhdx' -or $disk.Path -like '*.avhd')
                 {
 	                $Path = $disk.Path
                     while($Path = (Get-VHD -Path $Path).ParentPath)
@@ -888,7 +888,7 @@ function Get-HyperVMissingStorage
         $LocalVHDXDataPull = [System.Collections.ArrayList]@() 
         $LocalVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
         {
-            (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue ).FullName 
+            (Get-ChildItem -Path ($driveLetter + ':\') -Include '*.vhdx','*.vhd' -Recurse -ErrorAction SilentlyContinue ).FullName 
         }  
     
         $AllVHDXs = [System.Collections.ArrayList]@()
@@ -940,7 +940,7 @@ function Get-HyperVMissingStorage
         $LocalDriveLetters = (Get-Volume).DriveLetter   
         $LocalTmpVHDXDataPull += foreach ($driveLetter in $LocalDriveLetters)
         {
-            (Get-ChildItem -Path ($driveLetter + ':\') -Filter '*.vhdx.tmp' -Recurse -ErrorAction SilentlyContinue ).FullName
+            (Get-ChildItem -Path ($driveLetter + ':\') -Include '*.vhdx.tmp','*.vhd.tmp' -Recurse -ErrorAction SilentlyContinue ).FullName
         }
     
         # Clean the $null values out of the data pull and output the clean data as a PSObject.
@@ -958,7 +958,7 @@ function Get-HyperVMissingStorage
     }
 
     # Clear any old jobs out. 
-    Get-Job | Remove-Job    
+    Get-Job | Remove-Job   
          
     # Use PSJobs to launch all of the scripts at the same time.
     Start-Job -ScriptBlock $GetHyperVDiskShadows | Out-Null
@@ -1049,29 +1049,6 @@ function Get-HyperVMissingStorage
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-    Write-Host 'Checking for VHDXs that are not in use...' -ForegroundColor White
-    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
-
-    # Collect unused vHDXs from the job and assign to $HyperVUnusedVHDX.
-    $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *HyperVUnusedVHDX* | Wait-Job | Receive-Job  
-   
-    $UnusedVHDXs = ($HyperVUnusedVHDX).UnusedVHDX  
-    
-    if ($UnusedVHDXs)
-    {
-        foreach ($unusedVHDX in $UnusedVHDXs)
-        {
-            Write-Host $unusedVHDX -ForegroundColor Yellow
-        }
-    }
-    else
-    {
-        Write-Host 'No unused VHDXs found.' -ForegroundColor Green
-    }
-
-    Write-Host `r
-    Write-Host `r
-    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
     Write-Host 'Checking for hrl files that are larger than 5GB...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
@@ -1113,5 +1090,28 @@ function Get-HyperVMissingStorage
     else
     {        
         Write-Host 'No VHDX.tmp files found.' -ForegroundColor Green
+    }
+
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for VHDXs that are not in use...' -ForegroundColor White
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    # Collect unused vHDXs from the job and assign to $HyperVUnusedVHDX.
+    $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *HyperVUnusedVHDX* | Wait-Job | Receive-Job  
+   
+    $UnusedVHDXs = ($HyperVUnusedVHDX).UnusedVHDX  
+    
+    if ($UnusedVHDXs)
+    {
+        foreach ($unusedVHDX in $UnusedVHDXs)
+        {
+            Write-Host $unusedVHDX -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        Write-Host 'No unused VHDXs found.' -ForegroundColor Green
     }
 }
