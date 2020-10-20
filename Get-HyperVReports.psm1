@@ -534,7 +534,7 @@ function Get-HyperVStorageReport
                 $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name | Get-Unique
                 $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
 
-                if ($OSVersion -eq 10)
+                if ($OSVersion -ge 10)
                 {
                     $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq ($ClusterPath + '\')
                     [PSCustomObject]@{
@@ -643,6 +643,7 @@ function Get-HyperVVMInfo
     Write-Host '[1]  VM vCPU and RAM' -ForegroundColor White	
     Write-Host '[2]  VM Networking' -ForegroundColor White
     Write-Host '[3]  VM VHDX Size/Location/Type' -ForegroundColor White
+    Write-Host '[4]  VM VHDX IO/Latency (2016/2019 Only)' -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green    
     $MenuChoice = Read-Host 'Menu Choice'
     Write-Host `r
@@ -700,8 +701,35 @@ function Get-HyperVVMInfo
                         'VHDX Type' = $disk.VhdType
                     }
                 }
-            }  
-        }                    
+            }
+        }
+        if ($MenuChoice -eq 4)
+        {
+            $OSVersion = [environment]::OSVersion.Version.Major           
+            if ($OSVersion -ge 10)
+            {              
+                $VHDXIO = Get-StorageQoSFlow
+                $results = foreach($vhdxio in $VHDXIO)
+                {
+                    $Latency = [math]::Round($vhdxio.InitiatorLatency, 2)
+                    $Bandwidth = [math]::Round($vhdxio.InitiatorBandwidth /1MB, 2)
+
+                    [PSCustomObject]@{
+                        VMName = $vhdxio.InitiatorName
+                        FilePath = $vhdxio.FilePath
+                        IOPS = $vhdxio.InitiatorIOPS
+                        Latency = [string]$Latency + ' ms'
+                        Bandwidth = [string]$Bandwidth + ' MB/s'
+                    }
+                }
+            }
+            else
+            {
+                Write-Host 'This is only supported on Windows Server 2016 and up. Returning to menu.'
+                Start-Sleep -s 2
+                Get-HyperVVMInfo
+            }
+        }                      
     }
     catch
     {
@@ -731,6 +759,17 @@ function Get-HyperVVMInfo
         {
             $results | Sort-Object VMName | Format-Table -AutoSize
         }    
+    }
+    elseif ($MenuChoice -eq 4)
+    {
+        if ($ExportToCSV)
+        {
+            $results | Sort-Object IOPS -Descending | Export-Csv -Path $ExportToCSV -NoTypeInformation
+        }
+        else
+        {
+            $results | Sort-Object IOPS -Descending | Format-Table -AutoSize 
+        }   
     }
     else
     {
