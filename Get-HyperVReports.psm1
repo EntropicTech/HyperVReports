@@ -550,7 +550,7 @@ function Get-HyperVStorageReport
                         'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
                         'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
-                        'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        '% Free' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                         IOPS = $QOS.IOPS
                         Latency = [math]::Round($QOS.Latency, 2)
                         'MB/s' = [math]::Round(($QOS.Bandwidth /1MB), 1)
@@ -566,7 +566,7 @@ function Get-HyperVStorageReport
                         'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
                         'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
                         'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
-                        'Free %' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        '% Free' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
                     }
                 }
             }   
@@ -593,7 +593,7 @@ function Get-HyperVStorageReport
                 'Size(GB)' = [math]::Round($disk.Size /1GB)
                 'Used(GB)' = [math]::Round( ($disk.Size - $disk.SizeRemaining) /1GB)
                 'Free(GB)' = [math]::Round($disk.SizeRemaining /1GB)                
-                'Free %' = [math]::Round(($disk.SizeRemaining / $disk.Size) * 100) 
+                '% Free' = [math]::Round(($disk.SizeRemaining / $disk.Size) * 100) 
             }
         }
     }
@@ -602,7 +602,7 @@ function Get-HyperVStorageReport
     switch ($MenuChoice)
     {
         1 { $results | Sort-Object '#' | Format-Table * -AutoSize }
-        2 { $results | Select-Object '#',CSVName,ClusterPath,'Size(GB)','Used(GB)','Free(GB)','Free %' | Sort-Object '#' | Format-Table -AutoSize }
+        2 { $results | Select-Object '#',CSVName,ClusterPath,'Size(GB)','Used(GB)','Free(GB)','% Free' | Sort-Object '#' | Format-Table -AutoSize }
         3 { $results | Select-Object '#',CSVName,ClusterPath,IOPS,Latency,MB/s | Sort-Object '#' | Format-Table -AutoSize }
         4 { $results | Sort-Object Drive | Format-Table -AutoSize }
         default
