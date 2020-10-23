@@ -971,7 +971,7 @@ function Get-HyperVMissingStorage
         # Check to see if any hrl files are larger than 5GB.
         foreach ($hrl in $AllHRLs)
         {
-            if ( ($hrl.Length -gt 5368706371) -or (($hrl.LastWriteTime | Get-Date -Format d) -ge (Get-Date).AddDays(-7)) )
+            if ( ($hrl.Length -gt 5368706371) -or ((Get-Date).AddDays(-7)) -ge ($hrl.LastWriteTime | Get-Date -Format d) )
             {
                 [PSCustomObject]@{
                     FullName = $hrl.FullName
@@ -1125,14 +1125,17 @@ function Get-HyperVMissingStorage
     Write-Host 'Checking for hrl files that are older than a week...' -ForegroundColor White
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
-    $HRLs = $HyperVHRL | Where-Object LastWritten -ne $null
+    $HRLs = $HyperVHRL
 
     if ($HRLs)
     {
         foreach ($hrl in $HRLs)
         {
-            Write-Host "$($Hrl.LastWritten) - $($hrl.FullName)" -ForegroundColor Yellow           
-        }
+            if (((Get-Date).AddDays(-7)) -ge ($hrl.LastWritten | Get-Date -Format d))
+            {            
+                Write-Host "$($Hrl.LastWritten) - $($Hrl.Size) GB - $($hrl.FullName)" -ForegroundColor Yellow
+            }           
+        }            
     }
     else
     {
