@@ -256,36 +256,41 @@ function Get-HyperVClusterLogs
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
     Write-Host '           Clustered Hyper-V Eventlog Search'           -ForegroundColor White 
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
-    Write-Host '[1]  Search last 24 hours' -ForegroundColor White 
-    Write-Host '[2]  Specify date range' -ForegroundColor White 
+    Write-Host '[1]  Search last 24 hours' -ForegroundColor White
+    Write-Host '[2]  Search last 48 hours' -ForegroundColor White 
+    Write-Host '[3]  Search last 7 days' -ForegroundColor White  
+    Write-Host '[4]  Specify date range' -ForegroundColor White 
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
     $MenuChoice = Read-Host 'Please select menu number'
     Write-Host `r   
 
-    # Builds a 24hour $StartDate and #EndDate unless date is provided.
+    # Builds a 24, 48 or 7 day $StartDate and #EndDate unless date is provided.
     Switch ($MenuChoice)
     {
-        1
-        {
-            $StartDate = (Get-Date).AddDays(-1)    
-            $EndDate = (Get-Date).AddDays(1)
-        }
-        2
-        {
-            $DateFormat = Get-Date -Format d 
-            Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
-            Write-Host `r 
-            $StartDate = Read-Host 'Enter oldest search date.' 
-            $EndDate = Read-Host 'Enter latest search date.'
-            Write-Host `r         
-        }
-        default
-        {
-            Clear-Host
-            Write-Host 'Incorrect Choice. Choose a number from the menu.'
-            Start-Sleep -Seconds 3
-            Get-HyperVClusterLogs
-        }
+        1 { $DaysBack = -1 }
+        2 { $DaysBack = -2 }
+        3 { $DaysBack = -7 }
+    }
+    if ($MenuChoice -eq '1' -or $MenuChoice -eq '2' -or $MenuChoice -eq '3' )
+    {
+        $StartDate = (Get-Date).AddDays($DaysBack)   
+        $EndDate = (Get-Date).AddDays(1)       
+    }
+    elseif ($MenuChoice -eq '4')
+    {
+        $DateFormat = Get-Date -Format d 
+        Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
+        Write-Host `r 
+        $StartDate = Read-Host 'Enter oldest search date.' 
+        $EndDate = Read-Host 'Enter latest search date.'
+        Write-Host `r        
+    }
+    else
+    {
+        Clear-Host
+        Write-Host 'Incorrect Choice. Choose a number from the menu.'
+        Start-Sleep -Seconds 3
+        Get-HyperVClusterLogs
     }
 
     # Collects text to filter the event log with. 
