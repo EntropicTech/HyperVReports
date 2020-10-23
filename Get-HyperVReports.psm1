@@ -259,9 +259,9 @@ function Get-HyperVClusterLogs
     Write-Host '[1]  Search last 24 hours' -ForegroundColor White
     Write-Host '[2]  Search last 48 hours' -ForegroundColor White 
     Write-Host '[3]  Search last 7 days' -ForegroundColor White  
-    Write-Host '[4]  Specify date range' -ForegroundColor White 
+    Write-Host '[4]  Specify date range to search' -ForegroundColor White 
     Write-Host -------------------------------------------------------- -ForegroundColor Green 
-    $MenuChoice = Read-Host 'Please select menu number'
+    $MenuChoice = Read-Host 'Select menu number'
     Write-Host `r   
 
     # Builds a 24, 48 or 7 day $StartDate and #EndDate unless date is provided.
@@ -281,8 +281,12 @@ function Get-HyperVClusterLogs
         $DateFormat = Get-Date -Format d 
         Write-Host "The date format for this environment is '$DateFormat'." -ForegroundColor Yellow
         Write-Host `r 
-        $StartDate = Read-Host 'Enter oldest search date.' 
-        $EndDate = Read-Host 'Enter latest search date.'
+        $StartDate = Read-Host 'Enter oldest search date' 
+        $EndDate = Read-Host 'Enter latest search date'
+        if ($EndDate -eq '')
+        {
+            $EndDate = (Get-Date).AddDays(1)
+        }
         Write-Host `r        
     }
     else
