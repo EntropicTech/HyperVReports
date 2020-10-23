@@ -971,10 +971,12 @@ function Get-HyperVMissingStorage
         # Check to see if any hrl files are larger than 5GB.
         foreach ($hrl in $AllHRLs)
         {
-            if ($hrl.Length -gt 5368706371)
+            if ( ($hrl.Length -gt 5368706371) -or (($hrl.LastWriteTime | Get-Date -Format d) -ge (Get-Date).AddDays(-7)) )
             {
                 [PSCustomObject]@{
                     FullName = $hrl.FullName
+                    Size = [math]::Round($hrl.Length /1GB)
+                    LastWritten = $hrl.LastWriteTime | Get-Date -Format d
                 }
             }
         }    
@@ -1006,7 +1008,7 @@ function Get-HyperVMissingStorage
     }
 
     # Clear any old jobs out. 
-    Get-Job | Remove-Job   
+    Get-Job | Remove-Job -Force   
          
     # Use PSJobs to launch all of the scripts at the same time.
     Start-Job -ScriptBlock $GetHyperVDiskShadows | Out-Null
@@ -1103,18 +1105,38 @@ function Get-HyperVMissingStorage
     # Collect HRL files from the job and assign to $HyperVHRL.
     $HyperVHRL = Get-Job | Where-Object Command -like *HyperVHRL* | Wait-Job | Receive-Job  
 
-    $HRLs = $HyperVHRL
+    $HRLs = $HyperVHRL | Where-Object Size -gt 5
 
     if ($HRLs)
     {
         foreach ($hrl in $HRLs)
         {
-            Write-Host $hrl.FullName -ForegroundColor Yellow
+            Write-Host "$($Hrl.Size) GB - $($hrl.FullName)" -ForegroundColor Yellow
         }
     }
     else
     {
         Write-Host 'All hrl files smaller than 5GBs.' -ForegroundColor Green
+    }
+
+    Write-Host `r
+    Write-Host `r
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+    Write-Host 'Checking for hrl files that are older than a week...' -ForegroundColor White
+    Write-Host '-----------------------------------------------------------------' -ForegroundColor White
+
+    $HRLs = $HyperVHRL | Where-Object LastWritten -ne $null
+
+    if ($HRLs)
+    {
+        foreach ($hrl in $HRLs)
+        {
+            Write-Host "$($Hrl.LastWritten) - $($hrl.FullName)" -ForegroundColor Yellow           
+        }
+    }
+    else
+    {
+        Write-Host 'All hrls are newer than a week.' -ForegroundColor Green
     }
 
     Write-Host `r
