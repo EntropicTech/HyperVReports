@@ -389,7 +389,7 @@ Function Get-HyperVMaintenanceQC
         Get-HyperVReports
     }
     
-    # Gather Cluster Variables
+    # Gather cluster variables
     $Cluster = Get-Cluster
     $DomainNodes = Get-DomainNodes
     
@@ -426,18 +426,20 @@ Function Get-HyperVMaintenanceQC
 
     # Calculate math for different variables.
     $Nodecount = $DomainNodes.Count
-    $SingleNodeVirtMemory = [math]::Round($VirtMemory/$Nodecount)
+    $SingleNodeVirtMemory = $VirtMemory | Sort-Object -Descending | Select-Object -Last 1 # Reviews nodes and takes the node with the lowest virt memory. 
     $SingleNodeMemory = $VMHostMemory.TotalMemory[0]
     $Nodecheck = $TotalVMHostMemory / $SingleNodeMemory
     $UsableMemoryAfterFailure = ($TotalUsableVMHostMemory + $SingleNodeVirtMemory)
     $HAMemory = $SingleNodeMemory - $UsableMemoryAfterFailure
-    $NPlus = [math]::Round($UsableMemoryAfterFailure / $SingleNodeMemory)
+    [decimal]$NPlusMath = $UsableMemoryAfterFailure / $SingleNodeMemory
+    $Nplus = $NPlusMath.ToString().Split('.')[0]
        
-    # Sort Nonclustered VMs by their state for readability.
-    $NonClusteredVMsSorted = Get-HyperVVMs | Where-Object IsClustered -EQ $False | Sort-Object State
+    # Sort nonclustered VMs by their state for readability.
+    $VMs = Get-HyperVVMs
+    $NonClusteredVMsSorted = $VMs | Where-Object IsClustered -EQ $False | Sort-Object State
 
-    Clear-Host
-    
+    # Print the top of the report.
+    Clear-Host    
     if ($Nodecount -eq '1')
     {
         Write-Host '===========================================' -ForegroundColor DarkGray
@@ -451,10 +453,17 @@ Function Get-HyperVMaintenanceQC
         Write-Host '===========================================' -ForegroundColor DarkGray
     }
 
-    # Print Node Memory Report                      
-    Write-Host " $TotalVMHostMemory GB - Physical memory of cluster"   
-    Write-Host " $SingleNodeMemory GB - Physical memory of each node"    
-    Write-Host " $UsableMemoryAfterFailure GB - Total usable memory of cluster"    
+    # Print node memory report.                      
+    Write-Host -NoNewline "   $TotalVMHostMemory " -ForegroundColor Green; Write-Host 'GB - Total cluster memory'   
+    Write-Host -NoNewline "   $SingleNodeMemory " -ForegroundColor Green ; Write-Host 'GB - Memory of each node'
+    if ($NPlus -gt 0)
+    {
+        Write-Host -NoNewline "   $UsableMemoryAfterFailure " -ForegroundColor Green ; Write-Host 'GB - Usable memory with 1 failure'         
+    }
+    else
+    {
+        Write-Host -NoNewline "   $UsableMemoryAfterFailure " -ForegroundColor Red ; Write-Host 'GB - Usable memory with 1 failure'  
+    }      
     Write-Host '===========================================' -ForegroundColor DarkGray
 
     # Prints error if all nodes don't have the same amount of memory.    
@@ -487,7 +496,7 @@ Function Get-HyperVMaintenanceQC
     else
     {
         Write-Host '           Unclustered VMs Found!' -ForegroundColor Yellow
-        Write-Host '===========================================' -ForegroundColor DarkGray
+        Write-Host '--------------------------------------------' -ForegroundColor DarkGray
     }
     
     # Prints nonclustered VMs.
@@ -496,6 +505,8 @@ Function Get-HyperVMaintenanceQC
         $VMOutput = ' ' + ($VM.ComputerName).Split('.')[0] + ' - ' + $VM.State + ' - ' + $VM.Name
         Write-Host $VMOutput -ForegroundColor Yellow
     }
+    
+    Write-Host '===========================================' -ForegroundColor DarkGray
 }
 
 function Get-HyperVStorageReport
