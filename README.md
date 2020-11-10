@@ -11,6 +11,7 @@ Brings up menu to choose desired report.
 [3]  Cluster Aware Update History
 [4]  Storage Reports
 [5]  VM Reports
+[6]  Storage Cleanup Analyzer
 --------------------------------------------------------
 Menu Choice: 
 ```
@@ -21,10 +22,12 @@ Filter the Hyper-V Cluster logs by time range and error text.
 
 ```
 --------------------------------------------------------
-           Hyper-V Cluster Event Log Search
+           Clustered Hyper-V Eventlog Search
 --------------------------------------------------------
 [1]  Search last 24 hours
-[2]  Specify date range
+[2]  Search last 48 hours
+[3]  Search last 7 days
+[4]  Specify date range to search
 --------------------------------------------------------
 Please select menu number: 1
 Enter text to filter the Event Logs by VM Name or Event log text: RDP
@@ -148,9 +151,10 @@ Pulls various reports for the Cluster Shared Volumes
 --------------------------------------------------------
                Hyper-V Storage Reports
 --------------------------------------------------------
-[1]  Full report
-[2]  Storage Utilization
-[3]  Cluster Storage IO - 2016 Only
+[1]  Cluster Storage - Full report
+[2]  Cluster Storage - Utilization
+[3]  Cluster Storage - IO (2016/2019 Only)
+[4]  Local Storage - Utilization
 --------------------------------------------------------
 Menu Choice: 1
 
@@ -167,9 +171,10 @@ Prints various reports for the VMs
 --------------------------------------------------------
                   Hyper-V VM Reports
 --------------------------------------------------------
-[1]  Full report
-[2]  VM Resource Allocation
-[3]  VM Networking
+[1]  VM vCPU and RAM
+[2]  VM Networking
+[3]  VM VHDX Size/Location/Type
+[4]  VM VHDX IO/Latency (2016/2019 Only)
 --------------------------------------------------------
 Menu Choice: 1
 
@@ -182,4 +187,58 @@ ET-HV-01 ET-FS-01       4   4 192.168.0.7     0    00155D0A0C51 SETswitch
 ET-HV-01 ET-RDP-03      4   4 192.168.0.25    0    00155D002026 SETswitch
 ET-HV-02 ET-QB-01       8   8 192.168.0.23    0    00155D002023 SETswitch
 ET-HV-02 ET-RDP-02      4   4 192.168.0.45    0    00155D0A0C54 SETswitch
+```
+
+# Get-HyperVStorageCleanupAnalyzer
+
+Checks environment for things taking up space that might be able to be addressed to recover space.
+
+```
+-----------------------------------------------------------------
+Checking for Disk Shadows...
+-----------------------------------------------------------------
+No Disk Shadows found.
+
+
+-----------------------------------------------------------------
+Checking for VMs with their Automatic Stop Action set to Save...
+-----------------------------------------------------------------
+No VMs with Save set as the Automatic Stop Action found.
+
+
+-----------------------------------------------------------------
+Checking for Checkpoints...
+-----------------------------------------------------------------
+ET-SVR-01 - 11/06/2018 20:03:19
+
+
+-----------------------------------------------------------------
+Checking for AVHDXs...
+-----------------------------------------------------------------
+ET-SVR-01 - C:\ClusterStorage\Volume2\VMs\516791-Helios\516791-HELIOS_94504D42-8991-4B10-B5C6-E99AC0E3EC0F.avhd
+
+
+-----------------------------------------------------------------
+Checking for hrl files that are larger than 5GB...
+-----------------------------------------------------------------
+All hrl files smaller than 5GBs.
+
+
+-----------------------------------------------------------------
+Checking for hrl files that are older than a week...
+-----------------------------------------------------------------
+All hrls are newer than a week.
+
+
+-----------------------------------------------------------------
+Checking for VHDX.tmp files...
+-----------------------------------------------------------------
+No VHDX.tmp files found.
+
+
+-----------------------------------------------------------------
+Checking for VHDXs that are not in use...
+-----------------------------------------------------------------
+C:\ClusterStorage\Volume1\VMs\Backup.vhd
+C:\ClusterStorage\Volume1\VMs\OS.vhdx
 ```
