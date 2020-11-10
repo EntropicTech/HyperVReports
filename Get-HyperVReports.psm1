@@ -34,7 +34,7 @@ function Get-HyperVReports
         3 { Get-HyperVCAULogs }
         4 { Get-HyperVStorageReport }
         5 { Get-HyperVVMInfo }
-        6 { Get-HyperVMissingStorage }
+        6 { Get-HyperVStorageCleanupAnalyzer }
         default 
         { 
             Clear-Host
@@ -820,11 +820,11 @@ function Get-HyperVVMInfo
 }
 
 
-function Get-HyperVMissingStorage
+function Get-HyperVStorageCleanupAnalyzer
 {
     <#
         .SYNOPSIS
-            Get-HyperVMissingStorage goes through the Hyper-V environment looking for things taking up space.       
+            Get-HyperVStorageCleanupAnalyzer goes through the Hyper-V environment looking for things taking up space.       
     #>   
     [CmdletBinding()]
     param()
@@ -1025,7 +1025,7 @@ function Get-HyperVMissingStorage
     }
 
     # Clear any old jobs out. 
-    Get-Job | Remove-Job -Force   
+    Get-Job | Where-Object Command -like *HyperV* | Remove-Job -Force   
          
     # Use PSJobs to launch all of the scripts at the same time.
     Start-Job -ScriptBlock $GetHyperVDiskShadows | Out-Null
