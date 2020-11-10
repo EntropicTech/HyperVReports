@@ -543,47 +543,53 @@ function Get-HyperVStorageReport
             # Variable Setup
             $OSVersion = [environment]::OSVersion.Version.Major
             $CSVs = Get-Partition | Where-Object AccessPaths -like *ClusterStorage* | Select-Object AccessPaths,DiskNumber
+            if (Get-ClusterSharedVolume)
+            {
+                $results = foreach ($csv in $CSVs)
+                {   
+                    # Collecting CSV information
+                    $AccessPathVolumeID = $csv.AccessPaths.Split('/')[1]
+                    $ClusterPath = $csv.AccessPaths[0].TrimEnd('\')                
+                    $FriendlyPath = $ClusterPath.Split('\')[2]
+                    $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
+                    $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name | Get-Unique
+                    $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
 
-            $results = foreach ($csv in $CSVs)
-            {   
-                # Collecting CSV information
-                $AccessPathVolumeID = $csv.AccessPaths.Split('/')[1]
-                $ClusterPath = $csv.AccessPaths[0].TrimEnd('\')                
-                $FriendlyPath = $ClusterPath.Split('\')[2]
-                $ClusterSharedVolume = Get-ClusterSharedVolume | Select-Object -ExpandProperty SharedVolumeInfo | Where-Object FriendlyVolumeName -eq $ClusterPath | Select-Object -Property FriendlyVolumeName -ExpandProperty Partition
-                $CSVName =  (Get-ClusterSharedVolumeState | Where-Object VolumeFriendlyName -eq $FriendlyPath).Name | Get-Unique
-                $VolumeBlock = Get-Volume | Where-Object Path -like $AccessPathVolumeID
-
-                if ($OSVersion -ge 10)
-                {
-                    $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq ($ClusterPath + '\')
-                    [PSCustomObject]@{
-                        '#' = $csv.DiskNumber
-                        Block = $VolumeBlock.AllocationUnitSize
-                        CSVName = $CSVName
-                        ClusterPath = $ClusterPath
-                        'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
-                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                        'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
-                        '% Free' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
-                        IOPS = $QOS.IOPS
-                        Latency = [math]::Round($QOS.Latency, 2)
-                        'MB/s' = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                    if ($OSVersion -ge 10)
+                    {
+                        $QOS = Get-StorageQosVolume | Where-Object MountPoint -eq ($ClusterPath + '\')
+                        [PSCustomObject]@{
+                            '#' = $csv.DiskNumber
+                            Block = $VolumeBlock.AllocationUnitSize
+                            CSVName = $CSVName
+                            ClusterPath = $ClusterPath
+                            'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
+                            'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                            'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
+                            '% Free' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                            IOPS = $QOS.IOPS
+                            Latency = [math]::Round($QOS.Latency, 2)
+                            'MB/s' = [math]::Round(($QOS.Bandwidth /1MB), 1)
+                        }
+                    }
+                    else
+                    {
+                        [PSCustomObject]@{
+                            '#' = $csv.DiskNumber
+                            Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
+                            CSVName = $CSVName
+                            ClusterPath = $ClusterPath
+                            'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
+                            'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
+                            'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
+                            '% Free' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
+                        }
                     }
                 }
-                else
-                {
-                    [PSCustomObject]@{
-                        '#' = $csv.DiskNumber
-                        Block = (Get-CimInstance -ClassName Win32_Volume | Where-Object Label -Like $VolumeBlock.FileSystemLabel).BlockSize[0]
-                        CSVName = $CSVName
-                        ClusterPath = $ClusterPath
-                        'Size(GB)' = [math]::Round($ClusterSharedVolume.Size /1GB)
-                        'Used(GB)' = [math]::Round($ClusterSharedVolume.UsedSpace /1GB)
-                        'Free(GB)' = [math]::Round( ($ClusterSharedVolume.Size - $ClusterSharedVolume.UsedSpace) /1GB)
-                        '% Free' = [math]::Round($ClusterSharedVolume.PercentFree, 1)
-                    }
-                }
+            }
+            else
+            {
+                Write-Host 'This environment does not have any clustered storage.' -ForegroundColor White
             }   
         }
         catch
@@ -599,7 +605,7 @@ function Get-HyperVStorageReport
         Write-Host 'Pulling information from local storage...' -ForegroundColor White
 
         # Collect local disk information.
-        $Volumes = Get-Volume | Where-Object { $null -ne $_.DriveLetter -and $_.DriveType -eq 'Fixed' }
+        $Volumes = Get-Volume | Where-Object { $_.DriveType -eq 'Fixed' -and $_.FileSystem -ne 'CSVFS' -and $_.FileSystemLabel -notlike "*quorum*" }
         $results = foreach ($disk in $Volumes)
         {
             [PSCustomObject]@{
@@ -1037,9 +1043,7 @@ function Get-HyperVMissingStorage
 
     # Collect diskshadows from the job and assign to $HyperVDiskShadows.
     $HyperVDiskShadows = Get-Job | Where-Object Command -like *HyperVDiskShadows* | Wait-Job | Receive-Job  
-
     $NumberOfDiskShadows = ($HyperVDiskShadows).Diskshadows
-
     if ( $NumberOfDiskShadows -eq '0' )
     {
         Write-Host 'No Disk Shadows found.' -ForegroundColor Green 
@@ -1057,9 +1061,7 @@ function Get-HyperVMissingStorage
 
     # Collect VM Stop Action from the job and assign to $HyperVSaveAction.
     $HyperVStopAction = Get-Job | Where-Object Command -like *HyperVStopAction* | Wait-Job | Receive-Job  
-
     $VMsWithStopAction = ($HyperVStopAction).VMName
-
     if ( $VMsWithStopAction.Count -eq '0' )
     {
         Write-Host 'No VMs with Save set as the Automatic Stop Action found.' -ForegroundColor Green 
@@ -1077,7 +1079,6 @@ function Get-HyperVMissingStorage
 
     # Collect checkpoints from the job and assign to $HyperVDiskShadows.
     $HyperVCheckpoints = Get-Job | Where-Object Command -like *HyperVCheckpoints* | Wait-Job | Receive-Job  
-
     $VMSnapshots = $HyperVCheckpoints
     if ($VMSnapshots)
     {
@@ -1096,7 +1097,6 @@ function Get-HyperVMissingStorage
 
     # Collect AVHDXs from the job and assign to $HyperVVMAVHDX.
     $HyperVVMAVHDX = Get-Job | Where-Object Command -like *GetHyperVVMAVHDX* | Wait-Job | Receive-Job  
-
     $VMAVHDXs = $HyperVVMAVHDX
     if ($VMAVHDXs)
     {
@@ -1115,9 +1115,7 @@ function Get-HyperVMissingStorage
 
     # Collect HRL files from the job and assign to $HyperVHRL.
     $HyperVHRL = Get-Job | Where-Object Command -like *HyperVHRL* | Wait-Job | Receive-Job  
-
     $HRLs = $HyperVHRL | Where-Object Size -gt 5
-
     if ($HRLs)
     {
         foreach ($hrl in $HRLs)
@@ -1137,7 +1135,6 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     $HRLs = $HyperVHRL
-
     if ($HRLs)
     {
         foreach ($hrl in $HRLs)
@@ -1161,9 +1158,7 @@ function Get-HyperVMissingStorage
 
     # Collect VHDX.tmp from the job and assign to $HyperVVHDXTmp
     $HyperVVHDXTmp = Get-Job | Where-Object Command -like *HyperVVHDXTmp* | Wait-Job | Receive-Job  
-
     $TmpVHDXs = $HyperVVHDXTmp
-
     if ($TmpVHDXs)
     {
         foreach ($tmpVHDX in $TmpVHDXs)
@@ -1183,10 +1178,8 @@ function Get-HyperVMissingStorage
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
 
     # Collect unused vHDXs from the job and assign to $HyperVUnusedVHDX.
-    $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *HyperVUnusedVHDX* | Wait-Job | Receive-Job  
-   
-    $UnusedVHDXs = ($HyperVUnusedVHDX).UnusedVHDX  
-    
+    $HyperVUnusedVHDX = Get-Job | Where-Object Command -like *HyperVUnusedVHDX* | Wait-Job | Receive-Job    
+    $UnusedVHDXs = ($HyperVUnusedVHDX).UnusedVHDX   
     if ($UnusedVHDXs)
     {
         foreach ($unusedVHDX in $UnusedVHDXs)
