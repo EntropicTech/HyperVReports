@@ -17,12 +17,12 @@ function Get-HyperVReports
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     Write-Host '                   Hyper-V Reports'                     -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
-    Write-Host '[1]  Hyper-V Cluster Log Search' -ForegroundColor White
-    Write-Host '[2]  Maintenance QC' -ForegroundColor White
-    Write-Host '[3]  Cluster Aware Update History' -ForegroundColor White
-    Write-Host '[4]  Storage Reports' -ForegroundColor White
-    Write-Host '[5]  VM Reports' -ForegroundColor White
-    Write-Host '[6]  Review environment for missing storage.' -ForegroundColor White
+    Write-Host '[1]  Hyper-V Cluster Log Search'                        -ForegroundColor White
+    Write-Host '[2]  Maintenance QC'                                    -ForegroundColor White
+    Write-Host '[3]  Cluster Aware Update History'                      -ForegroundColor White
+    Write-Host '[4]  Storage Reports'                                   -ForegroundColor White
+    Write-Host '[5]  VM Reports'                                        -ForegroundColor White
+    Write-Host '[6]  Storage Cleanup Analyzer'                          -ForegroundColor White
     Write-Host -------------------------------------------------------- -ForegroundColor Green
     $MenuChoice = Read-Host 'Menu Choice'
 
