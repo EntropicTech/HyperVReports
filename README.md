@@ -1,4 +1,4 @@
-# Get-HyperVReports
+# HyperVReports
 
 This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
 
