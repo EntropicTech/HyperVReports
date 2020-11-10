@@ -26,6 +26,28 @@ Update-Module -Name HyperVReports -Force
 
 ## Get-HyperVReports
 
+This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
+
+ * Parsing the Hyper-V logs for a single node or across a cluster
+ * N+1 Maintenance QC
+ * Cluster Aware Update report
+ * Clustered Shared Volume IO and utilization
+ * Informational reports for VMs
+
+## Getting Started
+
+The Preferred method is to install directly from the PSGallery.
+
+```
+# Set your current PowerShell session to use TLS1.2. This is a requirement for the PSGallery.
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+# Install the HyperVReports module.
+Install-Module -Name HyperVReports -Force -AllowClobber
+```
+
+### Get-HyperVReports
+
 Brings up menu to choose desired report.
 
 ```
@@ -60,6 +82,7 @@ Please select menu number: 1
                                                Clustered Hyper-V Eventlog Search
 --------------------------------------------------------------------------------------------------------------------------------------
 Search results for: RDP
+
 
 ET-HV-01
 
@@ -205,17 +228,23 @@ Prints various reports for the VMs
 [3]  VM VHDX Size/Location/Type
 [4]  VM VHDX IO/Latency (2016/2019 Only)
 --------------------------------------------------------
-Menu Choice: 1
+Menu Choice: 2
 
-Host     VMName        vCPU RAM IPAddress     VLAN MAC          vSwitch  
-----     ------        ---- --- ---------     ---- ---          -------  
-ET-HV-01 ET-DC-2        2   2 192.168.0.60    0    00155D0A0C55 SETswitch
-ET-HV-01 ET-RDP-01      4   4 192.168.0.18    0    00155D002027 SETswitch
-ET-HV-01 ET-DC-01       2   2 192.168.0.20    0    00155D002021 SETswitch
-ET-HV-01 ET-FS-01       4   4 192.168.0.7     0    00155D0A0C51 SETswitch
-ET-HV-01 ET-RDP-03      4   4 192.168.0.25    0    00155D002026 SETswitch
-ET-HV-02 ET-QB-01       8   8 192.168.0.23    0    00155D002023 SETswitch
-ET-HV-02 ET-RDP-02      4   4 192.168.0.45    0    00155D0A0C54 SETswitch
+
+Gathering data from VMs... Please be patient.
+
+Host     VMName              IPAddress     VLAN MAC          vSwitch
+----     ------              ---------     ---- ---          -------
+ET-HV-02 ET-7D2D-02          192.168.2.21     0 00155D026610 SETTeam
+ET-HV-03 ET-ARK-02           192.168.2.20     0 00155D02660F SETTeam
+ET-HV-03 ET-CA-01            192.168.2.26     0 00155D026612 SETTeam
+ET-HV-01 ET-DC-02            192.168.2.6      0 00155D02660C SETTeam
+ET-HV-01 ET-DEV-01           192.168.2.120    0 00155D026607 SETTeam
+ET-HV-03 ET-RDP-01           192.168.2.47     0 00155D026613 SETTeam
+ET-HV-03 ET-WAC-02           192.168.2.24     0 00155D026611 SETTeam
+ET-HV-03 PBRM-RDP-03         192.168.2.43     0 00155D026615 SETTeam
+ET-HV-02 PBRM-WAC-01         192.168.2.22     0 00155D026618 SETTeam
+ET-HV-02 PLEX-01             192.168.2.244    0 00155D026614 SETTeam
 ```
 
 ## Get-HyperVStorageCleanupAnalyzer
