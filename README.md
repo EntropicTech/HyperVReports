@@ -1,5 +1,31 @@
 # Get-HyperVReports
 
+This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
+
+ * Parsing the Hyper-V logs for a single node or across a cluster
+ * N+1 Maintenance QC
+ * Cluster Aware Update report
+ * Clustered Shared Volume IO and utilization
+ * Informational reports for VMs
+ * Analyze local and clustered storage for anything taking up space that isn't needed
+
+## Getting Started
+
+The Preferred method is to install directly from the PSGallery.
+
+```
+# Set your current PowerShell session to use TLS1.2. This is a requirement for the PSGallery.
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+# Install the HyperVReports module.
+Install-Module -Name HyperVReports -Force -AllowClobber
+
+# If it's already installed then you just need to update it.
+Update-Module -Name HyperVReports -Force
+```
+
+# Get-HyperVReports
+
 Brings up menu to choose desired report.
 
 ```
@@ -30,7 +56,10 @@ Filter the Hyper-V Cluster logs by time range and error text.
 [4]  Specify date range to search
 --------------------------------------------------------
 Please select menu number: 1
-Enter text to filter the Event Logs by VM Name or Event log text: RDP
+--------------------------------------------------------------------------------------------------------------------------------------
+                                               Clustered Hyper-V Eventlog Search
+--------------------------------------------------------------------------------------------------------------------------------------
+Search results for: RDP
 
 ET-HV-01
 
