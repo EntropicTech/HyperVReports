@@ -24,7 +24,7 @@ Install-Module -Name HyperVReports -Force -AllowClobber
 Update-Module -Name HyperVReports -Force
 ```
 
-# Get-HyperVReports
+## Get-HyperVReports
 
 Brings up menu to choose desired report.
 
@@ -42,7 +42,7 @@ Brings up menu to choose desired report.
 Menu Choice: 
 ```
 
-# Get-HyperVClusterLogs
+## Get-HyperVClusterLogs
 
 Filter the Hyper-V Cluster logs by time range and error text.
 
@@ -83,7 +83,7 @@ ProviderName : Microsoft-Windows-Hyper-V-Chipset
 Message      : 'ET-RDP-01' successfully booted an operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
 ```
 
-# Get-HyperVMaintenanceQC
+## Get-HyperVMaintenanceQC
 
 Verifies that the cluster can sustain a single node failure and that all VMs are clustered.
 ```
@@ -102,7 +102,7 @@ Verifies that the cluster can sustain a single node failure and that all VMs are
 -------------------------------------------
 ```
 
-# Get-HyperVCAULogs
+## Get-HyperVCAULogs
 
 Shows report of dates CAU was performed and then pulls the CAU logs and hotfixes installed for selected date.
 ```
@@ -172,7 +172,7 @@ ET-HV-01 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
 ET-HV-02 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
 ```
 
-# Get-HyperVStorageReport
+## Get-HyperVStorageReport
 
 Pulls various reports for the Cluster Shared Volumes
 
@@ -192,7 +192,7 @@ Menu Choice: 1
 1 65536 C:\ClusterStorage\Volume2      978     1000    2.2  929   11.89  5.7
 ```
 
-# Get-HyperVVMInfo
+## Get-HyperVVMInfo
 
 Prints various reports for the VMs
 
@@ -218,7 +218,7 @@ ET-HV-02 ET-QB-01       8   8 192.168.0.23    0    00155D002023 SETswitch
 ET-HV-02 ET-RDP-02      4   4 192.168.0.45    0    00155D0A0C54 SETswitch
 ```
 
-# Get-HyperVStorageCleanupAnalyzer
+## Get-HyperVStorageCleanupAnalyzer
 
 Checks environment for things taking up space that might be able to be addressed to recover space.
 
