@@ -24,28 +24,6 @@ Install-Module -Name HyperVReports -Force -AllowClobber
 Update-Module -Name HyperVReports -Force
 ```
 
-## Get-HyperVReports
-
-This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
-
- * Parsing the Hyper-V logs for a single node or across a cluster
- * N+1 Maintenance QC
- * Cluster Aware Update report
- * Clustered Shared Volume IO and utilization
- * Informational reports for VMs
-
-## Getting Started
-
-The Preferred method is to install directly from the PSGallery.
-
-```
-# Set your current PowerShell session to use TLS1.2. This is a requirement for the PSGallery.
-[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-
-# Install the HyperVReports module.
-Install-Module -Name HyperVReports -Force -AllowClobber
-```
-
 ### Get-HyperVReports
 
 Brings up menu to choose desired report.
