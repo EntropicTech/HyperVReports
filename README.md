@@ -1,4 +1,30 @@
-# Get-HyperVReports
+# HyperVReports
+
+This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
+
+ * Parsing the Hyper-V logs for a single node or across a cluster
+ * N+1 Maintenance QC
+ * Cluster Aware Update report
+ * Clustered Shared Volume IO and utilization
+ * Informational reports for VMs
+ * Analyze local and clustered storage for anything taking up space that isn't needed
+
+## Getting Started
+
+The Preferred method is to install directly from the PSGallery.
+
+```
+# Set your current PowerShell session to use TLS1.2. This is a requirement for the PSGallery.
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+# Install the HyperVReports module.
+Install-Module -Name HyperVReports -Force -AllowClobber
+
+# If it's already installed then you just need to update it.
+Update-Module -Name HyperVReports -Force
+```
+
+## Get-HyperVReports
 
 This script is a collection of information reports about single node and clustered Hyper-V environments. It quickly provides insight into various aspects of the environment including:
 
@@ -33,28 +59,30 @@ Brings up menu to choose desired report.
 [3]  Cluster Aware Update History
 [4]  Storage Reports
 [5]  VM Reports
+[6]  Storage Cleanup Analyzer
 --------------------------------------------------------
 Menu Choice: 
 ```
 
-### Get-HyperVClusterLogs
+## Get-HyperVClusterLogs
 
 Filter the Hyper-V Cluster logs by time range and error text.
 
 ```
 --------------------------------------------------------
-           Hyper-V Cluster Event Log Search
+           Clustered Hyper-V Eventlog Search
 --------------------------------------------------------
 [1]  Search last 24 hours
-[2]  Specify date range
+[2]  Search last 48 hours
+[3]  Search last 7 days
+[4]  Specify date range to search
 --------------------------------------------------------
 Please select menu number: 1
-Enter text to filter the Event Logs by VM Name or Event log text: RDP
-
 --------------------------------------------------------------------------------------------------------------------------------------
                                                Clustered Hyper-V Eventlog Search
 --------------------------------------------------------------------------------------------------------------------------------------
-Search results for: ET-RDP-01
+Search results for: RDP
+
 
 ET-HV-01
 
@@ -78,7 +106,7 @@ ProviderName : Microsoft-Windows-Hyper-V-Chipset
 Message      : 'ET-RDP-01' successfully booted an operating system. (Virtual machine ID 7D563560-D084-404F-9409-6D7D053CFEB3)
 ```
 
-### Get-HyperVMaintenanceQC
+## Get-HyperVMaintenanceQC
 
 Verifies that the cluster can sustain a single node failure and that all VMs are clustered.
 ```
@@ -97,7 +125,7 @@ Verifies that the cluster can sustain a single node failure and that all VMs are
 -------------------------------------------
 ```
 
-### Get-HyperVCAULogs
+## Get-HyperVCAULogs
 
 Shows report of dates CAU was performed and then pulls the CAU logs and hotfixes installed for selected date.
 ```
@@ -167,7 +195,7 @@ ET-HV-01 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
 ET-HV-02 Update      KB4489889 NT AUTHORITY\SYSTEM 3/24/2019 12:00:00 AM
 ```
 
-### Get-HyperVStorageReport
+## Get-HyperVStorageReport
 
 Pulls various reports for the Cluster Shared Volumes
 
@@ -177,7 +205,7 @@ Pulls various reports for the Cluster Shared Volumes
 --------------------------------------------------------
 [1]  Cluster Storage - Full report
 [2]  Cluster Storage - Utilization
-[3]  Cluster Storage - IO - 2016/2019 Only
+[3]  Cluster Storage - IO (2016/2019 Only)
 [4]  Local Storage - Utilization
 --------------------------------------------------------
 Menu Choice: 1
@@ -187,7 +215,7 @@ Menu Choice: 1
 1 65536 C:\ClusterStorage\Volume2      978     1000    2.2  929   11.89  5.7
 ```
 
-### Get-HyperVVMInfo
+## Get-HyperVVMInfo
 
 Prints various reports for the VMs
 
@@ -198,6 +226,7 @@ Prints various reports for the VMs
 [1]  VM vCPU and RAM
 [2]  VM Networking
 [3]  VM VHDX Size/Location/Type
+[4]  VM VHDX IO/Latency (2016/2019 Only)
 --------------------------------------------------------
 Menu Choice: 2
 
@@ -216,4 +245,58 @@ ET-HV-03 ET-WAC-02           192.168.2.24     0 00155D026611 SETTeam
 ET-HV-03 PBRM-RDP-03         192.168.2.43     0 00155D026615 SETTeam
 ET-HV-02 PBRM-WAC-01         192.168.2.22     0 00155D026618 SETTeam
 ET-HV-02 PLEX-01             192.168.2.244    0 00155D026614 SETTeam
+```
+
+## Get-HyperVStorageCleanupAnalyzer
+
+Checks environment for things taking up space that might be able to be addressed to recover space.
+
+```
+-----------------------------------------------------------------
+Checking for Disk Shadows...
+-----------------------------------------------------------------
+No Disk Shadows found.
+
+
+-----------------------------------------------------------------
+Checking for VMs with their Automatic Stop Action set to Save...
+-----------------------------------------------------------------
+No VMs with Save set as the Automatic Stop Action found.
+
+
+-----------------------------------------------------------------
+Checking for Checkpoints...
+-----------------------------------------------------------------
+ET-SVR-01 - 11/06/2018 20:03:19
+
+
+-----------------------------------------------------------------
+Checking for AVHDXs...
+-----------------------------------------------------------------
+ET-SVR-01 - C:\ClusterStorage\Volume2\VMs\516791-Helios\516791-HELIOS_94504D42-8991-4B10-B5C6-E99AC0E3EC0F.avhd
+
+
+-----------------------------------------------------------------
+Checking for hrl files that are larger than 5GB...
+-----------------------------------------------------------------
+All hrl files smaller than 5GBs.
+
+
+-----------------------------------------------------------------
+Checking for hrl files that are older than a week...
+-----------------------------------------------------------------
+All hrls are newer than a week.
+
+
+-----------------------------------------------------------------
+Checking for VHDX.tmp files...
+-----------------------------------------------------------------
+No VHDX.tmp files found.
+
+
+-----------------------------------------------------------------
+Checking for VHDXs that are not in use...
+-----------------------------------------------------------------
+C:\ClusterStorage\Volume1\VMs\Backup.vhd
+C:\ClusterStorage\Volume1\VMs\OS.vhdx
 ```
