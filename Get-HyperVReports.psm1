@@ -491,7 +491,6 @@ Function Get-HyperVMaintenanceQC
     if ($Null -eq $NonClusteredVMsSorted)
     {
         Write-Host '          All VMs are clustered' -ForegroundColor Green
-        Write-Host '===========================================' -ForegroundColor DarkGray
     }
     else
     {
@@ -504,8 +503,8 @@ Function Get-HyperVMaintenanceQC
     {
         $VMOutput = ' ' + ($VM.ComputerName).Split('.')[0] + ' - ' + $VM.State + ' - ' + $VM.Name
         Write-Host $VMOutput -ForegroundColor Yellow
-        Write-Host '===========================================' -ForegroundColor DarkGray
     }
+    Write-Host '===========================================' -ForegroundColor DarkGray
 }
 
 function Get-HyperVStorageReport
