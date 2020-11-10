@@ -504,9 +504,8 @@ Function Get-HyperVMaintenanceQC
     {
         $VMOutput = ' ' + ($VM.ComputerName).Split('.')[0] + ' - ' + $VM.State + ' - ' + $VM.Name
         Write-Host $VMOutput -ForegroundColor Yellow
+        Write-Host '===========================================' -ForegroundColor DarkGray
     }
-    
-    Write-Host '===========================================' -ForegroundColor DarkGray
 }
 
 function Get-HyperVStorageReport
