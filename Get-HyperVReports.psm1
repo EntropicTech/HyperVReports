@@ -442,47 +442,50 @@ Function Get-HyperVMaintenanceQC
     Clear-Host    
     if ($Nodecount -eq '1')
     {
+        # Header
         Write-Host '===========================================' -ForegroundColor DarkGray
-        Write-Host "    $Cluster is a single node cluster"
+        Write-Host "  $Cluster is a single node cluster"
         Write-Host '===========================================' -ForegroundColor DarkGray
+        Write-Host '      Single node clusters are NOT HA.' -ForegroundColor Red
     }
     else
     {
+        # Header
         Write-Host '===========================================' -ForegroundColor DarkGray
         Write-Host "        $Cluster - $Nodecount Nodes"
         Write-Host '===========================================' -ForegroundColor DarkGray
-    }
-
-    # Print node memory report.                      
-    Write-Host -NoNewline "   $TotalVMHostMemory " -ForegroundColor Green; Write-Host 'GB - Total cluster memory'   
-    Write-Host -NoNewline "   $SingleNodeMemory " -ForegroundColor Green ; Write-Host 'GB - Memory of each node'
-    if ($NPlus -gt 0)
-    {
-        Write-Host -NoNewline "   $UsableMemoryAfterFailure " -ForegroundColor Green ; Write-Host 'GB - Usable memory with 1 failure'         
-    }
-    else
-    {
-        Write-Host -NoNewline "   $UsableMemoryAfterFailure " -ForegroundColor Red ; Write-Host 'GB - Usable memory with 1 failure'  
-    }      
-    Write-Host '===========================================' -ForegroundColor DarkGray
-
-    # Prints error if all nodes don't have the same amount of memory.    
-    if ($Nodecheck -ne $Nodecount)
-    {        
-        Write-Host '  Nodes have different amounts of memory!'   -ForegroundColor Red        
+        
+        # Print node memory report.                      
+        Write-Host -NoNewline "   $TotalVMHostMemory " -ForegroundColor Green; Write-Host 'GB - Total cluster memory'   
+        Write-Host -NoNewline "   $SingleNodeMemory " -ForegroundColor Green ; Write-Host 'GB - Memory of each node'
+        if ($NPlus -gt 0)
+        {
+            Write-Host -NoNewline "   $UsableMemoryAfterFailure " -ForegroundColor Green ; Write-Host 'GB - Usable memory with 1 failure'         
+        }
+        else
+        {
+            Write-Host -NoNewline "   $UsableMemoryAfterFailure " -ForegroundColor Red ; Write-Host 'GB - Usable memory with 1 failure'  
+        }      
         Write-Host '===========================================' -ForegroundColor DarkGray
-    }
-    
-    # Checks if cluster is HA.    
-    if ($TotalUsableVMHostMemory -le $SingleNodeMemory -and $HAMemory -gt 0)
-    {       
-        Write-host ' Cluster would NOT survive single failure!' -ForegroundColor Red
-        Write-Host '===========================================' -ForegroundColor DarkGray       
-        Write-Host " More than $HAMemory GB of memory needed to be HA"
-    }
-    else
-    {    
-        Write-Host "             Cluster is N+$Nplus" -ForegroundColor Green
+
+        # Prints error if all nodes don't have the same amount of memory.    
+        if ($Nodecheck -ne $Nodecount)
+        {        
+            Write-Host '  Nodes have different amounts of memory!'   -ForegroundColor Red        
+            Write-Host '===========================================' -ForegroundColor DarkGray
+        }
+        
+        # Checks if cluster is HA.    
+        if ($TotalUsableVMHostMemory -le $SingleNodeMemory -and $HAMemory -gt 0)
+        {       
+            Write-host ' Cluster would NOT survive single failure!' -ForegroundColor Red
+            Write-Host '===========================================' -ForegroundColor DarkGray       
+            Write-Host " More than $HAMemory GB of memory needed to be HA"
+        }
+        else
+        {    
+            Write-Host "             Cluster is N+$Nplus" -ForegroundColor Green
+        }
     }
 
     Write-Host '===========================================' -ForegroundColor DarkGray
@@ -496,7 +499,7 @@ Function Get-HyperVMaintenanceQC
     else
     {
         Write-Host '           Unclustered VMs Found!' -ForegroundColor Yellow
-        Write-Host '--------------------------------------------' -ForegroundColor DarkGray
+        Write-Host '-------------------------------------------' -ForegroundColor DarkGray
     }
     
     # Prints nonclustered VMs.
@@ -1032,7 +1035,7 @@ function Get-HyperVStorageCleanupAnalyzer
     Start-Job -ScriptBlock $GetHyperVStopAction | Out-Null
     Start-Job -ScriptBlock $GetHyperVVMCheckpoints | Out-Null
     Start-Job -ScriptBlock $GetHyperVVMAVHDX | Out-Null
-    Start-Job -ScriptBlock $GetHyperVUnusedVHDXs | Out-Null
+    #Start-Job -ScriptBlock $GetHyperVUnusedVHDXs | Out-Null -  Removing this feature until I can work out the bugs with getting the primary VHDX of VMs with a backup chain straightened out.
     Start-Job -ScriptBlock $GetHyperVHRL | Out-Null
     Start-Job -ScriptBlock $GetHyperVVHDXTemp | Out-Null  
 
@@ -1171,6 +1174,7 @@ function Get-HyperVStorageCleanupAnalyzer
         Write-Host 'No VHDX.tmp files found.' -ForegroundColor Green
     }
 
+    <# Removing this feature until I can work out the bugs with getting the primary VHDX of VMs with a backup chain straightened out.
     Write-Host `r
     Write-Host `r
     Write-Host '-----------------------------------------------------------------' -ForegroundColor White
@@ -1191,4 +1195,5 @@ function Get-HyperVStorageCleanupAnalyzer
     {
         Write-Host 'No unused VHDXs found.' -ForegroundColor Green
     }
+    #>
 }
